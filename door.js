@@ -583,10 +583,23 @@ function bang(t){tn(t,.7,110,28,1.4);nz(t,.6,260,1.2);tn(t+.18,.35,90,40,.6)}
   // স্বাগতম বোর্ডের সময় শেষ হলে: আসল চ্যাট (#acx) এসে গেলে গেইট সরে যায়; না এলে সর্বোচ্চ ১২ সেকেন্ড অপেক্ষা (পেছনে লাইভ চ্যাট মক চলতে থাকে)
   var ANON_MS = 4000; // part60b: "আপনি বেনামে প্রবেশ করেছেন" বার্তা মূল চ্যাটের ওপর কত সময় থাকবে (মিলিসেকেন্ড)
   function anonMsg() { // দরজা সরার মুহূর্তেই মূল চ্যাটের ওপর বার্তা; সময় শেষে মিলায়
-    var m = document.createElement("div"); m.setAttribute("role", "status"); m.textContent = "আপনি বেনামে প্রবেশ করেছেন";
+    var m = document.createElement("div"); m.setAttribute("role", "status");
+    m.innerHTML = "<div>আপনি বেনামে প্রবেশ করেছেন</div><div style=\"font-size:13px;margin-top:5px;opacity:.95\">নাম চেঞ্জ করতে চাইলে এখানে ক্লিক করুন</div>"; // part64: দ্বিতীয় লাইন + ⋯ বাটনের দিকে তীর
     m.style.cssText = "position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2147483000;max-width:calc(100vw - 24px);background:#0b7a4b;color:#fff;font:15px/1.35 'Hind Siliguri','Noto Sans Bengali',system-ui,sans-serif;padding:14px 20px;border-radius:18px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.35);pointer-events:none;opacity:0;transition:opacity .35s";
     document.body.appendChild(m); requestAnimationFrame(function () { m.style.opacity = "1"; });
-    setTimeout(function () { m.style.opacity = "0"; }, ANON_MS); setTimeout(function () { if (m.parentNode) m.parentNode.removeChild(m); }, ANON_MS + 450);
+    var NS = "http://www.w3.org/2000/svg", sv = document.createElementNS(NS, "svg"); sv.setAttribute("aria-hidden", "true");
+    sv.style.cssText = "position:fixed;left:0;top:0;width:100%;height:100%;z-index:2147482999;pointer-events:none;opacity:0;transition:opacity .35s";
+    sv.innerHTML = '<defs><marker id="fdAh" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="#0b7a4b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs><line id="fdLn" x1="0" y1="0" x2="0" y2="0" stroke="#0b7a4b" stroke-width="1.6" stroke-linecap="round" marker-end="url(#fdAh)" style="display:none"/>';
+    document.body.appendChild(sv);
+    var ln = sv.querySelector("#fdLn"), iv = setInterval(function () {
+      var t = document.getElementById("acMr"); if (!t || !t.offsetParent) { ln.style.display = "none"; return; }
+      var a = m.getBoundingClientRect(), r = t.getBoundingClientRect(), x2 = r.left + r.width / 2, y2 = r.bottom + 4, x1 = a.right - 18, y1 = a.top;
+      var dx = x2 - x1, dy = y2 - y1, d = Math.sqrt(dx * dx + dy * dy) || 1; x1 += dx / d * 6; y1 += dy / d * 6;
+      ln.setAttribute("x1", x1); ln.setAttribute("y1", y1); ln.setAttribute("x2", x2); ln.setAttribute("y2", y2); ln.style.display = "";
+    }, 100);
+    requestAnimationFrame(function () { sv.style.opacity = "1"; });
+    setTimeout(function () { m.style.opacity = "0"; sv.style.opacity = "0"; }, ANON_MS);
+    setTimeout(function () { clearInterval(iv); if (m.parentNode) m.parentNode.removeChild(m); if (sv.parentNode) sv.parentNode.removeChild(sv); }, ANON_MS + 450);
   }
   function hold() { // স্বাগতম + ডেমো চ্যাট শেষ → মূল চ্যাট তৈরি থাকলে (না থাকলে সর্বোচ্চ ১২ সেকেন্ড অপেক্ষা, পেছনে ডেমো চলে) দরজা সরে, একই সাথে বেনামি বার্তা আসে
     if (phase !== 2) return; phase = 3; var t0 = Date.now(), an = curAnon && !hostMode;
