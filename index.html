@@ -27,8 +27,25 @@
 <meta name="twitter:image" content="https://mc-fd-adda.previewship.net/images/og-share-v2.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@500;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap">
+<!-- part98: গুগল ফন্ট পেজ আটকে রাখে না (Messenger/FB ইন-অ্যাপ ব্রাউজারে ধীর নেটে সাদা/ফাঁকা দেখানো আটকাতে); ৩ সেকেন্ডে না এলেও সাইট চালু -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@500;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@500;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap"></noscript>
+<script>
+/* part98: Messenger/Facebook/Instagram ইন-অ্যাপ ব্রাউজার চিনে html.iab বসায়; দেখা যাওয়া উচ্চতা --ivh/--ivt-তে রাখে (কীবোর্ড খুললে চ্যাট ঠিক থাকতে) */
+(function(){var d=document.documentElement,u=navigator.userAgent||"";
+var iab=/FBAN|FBAV|FB_IAB|FBIOS|Messenger|Instagram|MicroMessenger|Line\//i.test(u);
+if(/iPhone|iPad|iPod/i.test(u))d.className+=" ios";
+if(!iab)return;d.className+=" iab";
+function vh(){var h=0,t=0,v=window.visualViewport;try{if(v){h=v.height;t=v.offsetTop}}catch(e){}
+h=Math.round(h||window.innerHeight||0);if(h>200){d.style.setProperty("--ivh",h+"px");d.style.setProperty("--ivt",Math.max(0,Math.round(t||0))+"px")}}
+vh();window.addEventListener("resize",vh);window.addEventListener("pageshow",vh);
+window.addEventListener("orientationchange",function(){setTimeout(vh,300)});
+try{if(window.visualViewport){visualViewport.addEventListener("resize",vh);visualViewport.addEventListener("scroll",vh)}}catch(e){}
+setTimeout(function(){var l=document.querySelector('link[media="print"]');if(l)l.media="all"},3000);
+})();
+</script>
 <script src="config.js"></script>
+<script src="theme.js?v=th2"></script>
 <script>
 /* ব্যাকগ্রাউন্ড: অ্যাডমিন → 🖼 ব্যাকগ্রাউন্ড থেকে বদলায় (supabase-bg.sql লাগে)। সেট না থাকলে/লোড না হলে ডিফল্ট DEF নম্বরটা দেখায়। "00" = ব্যাকগ্রাউন্ড ছাড়া আগের সবুজ হেডার। */
 (function(){var DEF="12",R=document.documentElement,C=window.MC_CFG||{};
@@ -39,8 +56,9 @@ if(C.url&&C.key)fetch(String(C.url).replace(/\/$/,"")+"/rest/v1/mc2_site_bg?id=e
 })();
 </script>
 <style>
-:root{--bg:#f4f7f2;--fg:#10261b;--card:#fff;--mut:#5b6b62;--line:rgba(16,38,27,.14);--g1:#0f2d20;--g2:#1d6b43;--o:#ff7a18}
-@media(prefers-color-scheme:dark){:root{--bg:#0b1510;--fg:#eaf3ed;--card:#13241b;--mut:#9db1a5;--line:rgba(255,255,255,.16)}}
+:root{--bg:#0b1510;--fg:#eaf3ed;--card:#13241b;--mut:#9db1a5;--line:rgba(255,255,255,.16);--g1:#0f2d20;--g2:#1d6b43;--o:#ff7a18;color-scheme:dark}
+/* হোম সব মোডে/মেসেঞ্জারে সবসময় ডার্ক ডিজাইন; চ্যাট (#acx) আগের মতো সিস্টেম অনুযায়ী অটো ডার্ক/সাদা */
+#acx{color-scheme:light dark}
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font:400 16px/1.55 "MCDigits","Hind Siliguri","Noto Sans Bengali","Nirmala UI","Bangla Sangam MN","Kalpurush",system-ui,sans-serif;-webkit-text-size-adjust:100%}
 @font-face{font-family:"MCDigits";font-weight:100 500;src:local("Noto Sans Bengali"),local("NotoSansBengali-Regular"),local("NotoSansBengali"),local("Nirmala UI"),local("Bangla Sangam MN"),local("Kalpurush");unicode-range:U+09E6-09EF}
@@ -90,7 +108,7 @@ button.go.anon{background:linear-gradient(135deg,#2b2f3a,#566074)}
 #notice[hidden]{display:none}
 .rule{font-size:min(12px,3vw);padding:10px 6px}.rule .rl{display:block;text-align:center;width:100%;white-space:nowrap}
 .rule{text-align:center;text-wrap:balance;margin-top:14px;font-size:12.5px;line-height:1.55;padding:10px 12px;border-radius:12px;background:rgba(255,179,0,.14);border:1px solid rgba(255,179,0,.55)}
-.cm{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px}
+.cm{position:fixed;top:0;right:0;bottom:0;left:0;z-index:80;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:18px}
 .cm[hidden]{display:flex;visibility:hidden;opacity:0;pointer-events:none}
 .cm>div{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:20px;padding:20px;width:100%;max-width:340px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
 .cm h3{margin:0 0 4px;font-size:18px}.cm p{margin:0 0 12px;font-size:13.5px;color:var(--mut)}
@@ -107,13 +125,31 @@ button.go.anon{background:linear-gradient(135deg,#2b2f3a,#566074)}
 .am>div{max-width:300px;padding:16px}
 .am h3{font-size:16px;line-height:1.4;margin:0 0 10px}
 .am p{margin:0 0 6px;font-size:14px;line-height:1.5;color:var(--fg)}
-.am .ro{margin-top:12px}.am .ro button{padding:10px}.am .ro button.no{border-color:rgba(217,48,37,.55);color:#d93025}
-@media(prefers-color-scheme:dark){.am .ro button.no{color:#ff8a80}}
+.am .ro{margin-top:12px}.am .ro button{padding:10px}.am .ro button.no{border-color:rgba(217,48,37,.55);color:#ff8a80}
 .lblrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}.lblrow .lbl{margin:0}
 .htab{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:999px;color:#fff;font:800 17px/1.2 "Hind Siliguri","Anek Bangla",sans-serif;letter-spacing:.2px;background:linear-gradient(120deg,#e11d48 0%,#e11d48 38%,#2563eb 62%,#2563eb 100%);border:2px solid rgba(255,255,255,.85);box-shadow:0 6px 16px rgba(225,29,72,.35),0 6px 16px rgba(37,99,235,.35);animation:htf 2.8s ease-in-out infinite;text-shadow:0 1px 2px rgba(0,0,0,.35)}
 @keyframes htf{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-7px) rotate(1.5deg)}}
 @media(prefers-reduced-motion:reduce){.htab{animation:none}}
 footer{text-align:center;font-size:12px;color:var(--mut);padding:0 16px calc(18px + env(safe-area-inset-bottom))}
+</style>
+<style id="iab-compat">
+/* ===== part98: Messenger/FB ইন-অ্যাপ ব্রাউজার ও পুরোনো WebView সেফটি — ডিজাইন বদলায় না, শুধু ভাঙা আটকায় ===== */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html.iab *{-webkit-tap-highlight-color:transparent}
+html.iab button,html.iab a,html.iab input,html.iab select,html.iab .htab{touch-action:manipulation}
+html.iab body{min-height:var(--ivh,100vh)}
+/* কীবোর্ড খুললে/অ্যাপের নিচের বার থাকলে চ্যাট ঠিক দেখা-যাওয়া জায়গার মধ্যে থাকে (নিচের ৫৬px ফাঁকা জায়গা অক্ষত — chat.js --fa-lift) */
+html.iab #acx{height:var(--ivh,100%)}
+html.iab.ios #acx{top:var(--ivt,0px);bottom:auto}
+html.iab.ios #acFv{top:var(--ivt,0px);bottom:auto;height:var(--ivh,100%)}
+/* আইফোন ইন-অ্যাপ ব্রাউজারে লেখার ঘরে ক্লিক করলে পেজ জুম হয় (১৬px-এর ছোট লেখায়) — আটকানো */
+html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.iab input{font-size:16px!important}
+/* dvh না বোঝা পুরোনো WebView-এ দরজা/ডেমো চ্যাটের উচ্চতা vh দিয়ে */
+@supports not (height:100dvh){
+#fgate #door,#fgate #door.fc{height:95vh!important}
+#fgate #door.fac,#fgate.facg #door.fac{height:95vh!important;width:min(100%,calc(95vh*.789))!important}
+#fgate #lv{padding-top:2.5vh!important;padding-bottom:2.5vh!important}
+}
 </style>
 </head>
 <body>
@@ -165,7 +201,8 @@ footer{text-align:center;font-size:12px;color:var(--mut);padding:0 16px calc(18p
 </div>
 <footer>বন্ধুদের আড্ডার জন্য তৈরি · শুধু চ্যাট</footer>
 
-<script src="chat.js?v=stk16"></script>
+<script src="bubble.js?v=bb24"></script>
+<script src="chat.js?v=stk28"></script>
 <script>
 (function () {
   var $ = function (s) { return document.querySelector(s); };
@@ -419,6 +456,6 @@ footer{text-align:center;font-size:12px;color:var(--mut);padding:0 16px calc(18p
   });
 })();
 </script>
-<script src="bg12-anim.js?v=a7" defer></script><script src="door.js?v=d29" defer></script>
+<script src="bg12-anim.js?v=b9" defer></script><script src="door.js?v=d35" defer></script>
 </body>
 </html>

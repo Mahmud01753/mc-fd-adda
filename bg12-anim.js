@@ -478,7 +478,12 @@
     });
   }
 
+  // চ্যাট খোলা থাকলে (হোম ঢাকা) অ্যানিমেশন থামে — টাইপ আটকানো কমাতে; চ্যাট বন্ধ হলে আবার চলে
+  var pzT = 0;
+  function chatShown() { var e = document.getElementById("acx"); return !!e && e.style.display !== "none"; } // b9: মিনিমাইজে #acx লুকানো থাকে (display:none) — তখন চ্যাট "খোলা" নয়
+  function pzResume() { pzT = 0; if (mounted && !raf) { if (chatShown()) { pzT = setTimeout(pzResume, 200); return; } last = 0; raf = requestAnimationFrame(tick); } }
   function tick(ts) {
+    if (chatShown()) { raf = 0; if (!pzT) pzT = setTimeout(pzResume, 200); return; }
     var dt = last ? Math.min(.05, (ts - last) / 1000) : .016; last = ts; dt *= CFG.speed; T += dt;
     W.fish.forEach(function (f) { updFish(f, dt); });
     updWater(dt);
@@ -509,6 +514,7 @@
   function unmount() {
     unbindPtr();
     if (raf) cancelAnimationFrame(raf); raf = 0; last = 0;
+    if (pzT) { clearTimeout(pzT); pzT = 0; }
     if (host && host.parentNode) host.parentNode.removeChild(host);
     host = null; svg = null; W = {}; mounted = false;
   }
@@ -546,11 +552,88 @@
       '<path d="M1010,148 Q985,128 960,120 M930,162 Q915,178 880,184 M1130,137 Q1120,112 1100,100 M1075,142 Q1060,132 1050,132 M1215,124 Q1195,118 1180,118" fill="none" stroke="#150e09" stroke-width="5" stroke-linecap="round"/>' + lv;
   }
 
+  // part67: মাছ/পাখির শব্দ — অ্যাডমিন সুইচ + নিজের mp3 (লিংক/পথ, শুরু–শেষ সেকেন্ডে কাটা)। না বাছলে নিচের কৃত্রিম শব্দ।
+  var SND = { fo: true, bo: true, ho: true, hs: 3, f: "", b: "", h: "", lib: [] }, SA = {}, lastClip = 0;
+  function okSrc(u) { return typeof u === "string" && u.length < 400 && (/^https:\/\/[^\s"'\\()]+$/.test(u) || (/^[\w\-.\/]+\.(mp3|ogg|wav|m4a|aac|webm)$/i.test(u) && u.indexOf("..") < 0 && u[0] !== "/")); }
+  function sndSet(o) {
+    if (!o || typeof o !== "object") return; var L = [], i, x, s0, e0;
+    if (Array.isArray(o.lib)) for (i = 0; i < o.lib.length && L.length < 30; i++) { x = o.lib[i]; if (!x || !okSrc(x.u)) continue; s0 = Math.max(0, Math.min(3600, +x.s || 0)); e0 = Math.max(0, Math.min(7200, +x.e || 0)); if (!(e0 > s0)) e0 = s0 + 2; L.push({ id: String(x.id || i).slice(0, 12), n: String(x.n || "").slice(0, 30), u: x.u, s: s0, e: e0 }); }
+    SND = { fo: o.fo !== false, bo: o.bo !== false, ho: o.ho !== false, hs: Math.max(1, Math.min(5, +o.hs || 3)), f: String(o.fid || ""), b: String(o.bid || ""), h: String(o.hid || ""), lib: L }; SA = {};
+    ["f", "b", "h"].forEach(function (k) { var it = clipOf(k); if (it) clipAudio(it); });
+  }
+  function clipOf(k) { var id = k === "f" ? SND.f : k === "h" ? SND.h : SND.b, i; if (!id) return null; for (i = 0; i < SND.lib.length; i++) if (SND.lib[i].id === id) return SND.lib[i]; return null; }
+  function clipAudio(it) { var a = SA[it.id]; if (!a || a._u !== it.u) { a = new Audio(); a.preload = "auto"; a._u = it.u; a.src = it.u; SA[it.id] = a; } return a; }
+  function playClip(it, onFail, fresh, cap) { // it = {u,s,e}; fresh = অ্যাডমিন প্রিভিউ (ক্যাশ ছাড়া নতুন প্লেয়ার, বন্ধ করার জন্য ফেরত দেয়)
+    var a; try {
+      a = fresh ? new Audio(it.u) : clipAudio(it); if (fresh) a.preload = "auto"; clearTimeout(a._t); var bad = false;
+      var fail = function () { if (!bad) { bad = true; if (onFail) onFail(); } };
+      a.onerror = fail;
+      var go = function () { try { a.currentTime = it.s; } catch (e) {} var pr = a.play(); if (pr && pr.catch) pr.catch(fail); a._p = true; a._t = setTimeout(function () { a._p = false; a._b = 0; try { a.pause(); } catch (e) {} if (fresh && a._end) a._end(); }, Math.max(100, Math.min(cap ? cap * 1000 : 1e9, (it.e - it.s) * 1000))); };
+      if (a.readyState >= 1) go(); else a.addEventListener("loadedmetadata", function h() { a.removeEventListener("loadedmetadata", h); go(); });
+    } catch (e) { if (onFail) onFail(); }
+    return a;
+  }
+  try { var sv0 = JSON.parse(localStorage.getItem("bg12snd") || "null"); if (sv0) sndSet(sv0); } catch (e) {}
+
+  // part68: হোমে ঢুকলে প্রতিবার ৩ সেকেন্ডের সকালের পাখির ডাক (অ্যাডমিনে অন/অফ; নিজের mp3 বাছলে সেটার কাটা অংশ)। ব্রাউজার ট্যাপ ছাড়া শব্দ আটকালে প্রথম ট্যাপ/ক্লিকেই বাজে।
+  var E3 = 0;
+  function chirp3(force, sec) { // sec সেকেন্ড ধরে কিচিরমিচির (১–৩৬০০); লম্বা হলে ৩ সেকেন্ড পরপর কিস্তিতে সাজায়
+    try {
+      var C = window.AudioContext || window.webkitAudioContext; if (!C) return false;
+      if (!AC) AC = new C(); if (AC.state === "suspended") AC.resume(); if (AC.state !== "running" && !force) return false;
+      sec = Math.max(1, Math.min(5, +sec || 3)); var tok = ++E3, t0 = AC.currentTime + .05, fade = Math.min(1, sec * .3), next = 0;
+      var phrase = function (off) {
+        var n = 2 + Math.floor(Math.random() * 3), f0 = 2400 + Math.random() * 1800, vol = .09 * Math.min(1, Math.max(.05, (sec - off) / fade)), j, k, o, g;
+        for (j = 0; j < n; j++) {
+          k = t0 + off + j * .075; o = AC.createOscillator(); g = AC.createGain(); o.type = "sine";
+          o.frequency.setValueAtTime(f0 * (1 + j * .06), k); o.frequency.exponentialRampToValueAtTime(f0 * (1.5 + Math.random() * .4), k + .05); o.frequency.exponentialRampToValueAtTime(f0 * .9, k + .08);
+          g.gain.setValueAtTime(.0001, k); g.gain.exponentialRampToValueAtTime(Math.max(.0002, vol), k + .01); g.gain.exponentialRampToValueAtTime(.0001, k + .085);
+          o.connect(g); g.connect(AC.destination); o.start(k); o.stop(k + .09);
+        }
+      };
+      var chunk = function () {
+        if (tok !== E3) return; var lim = Math.max(0, AC.currentTime - t0) + 6;
+        while (next < sec - .3 && next < lim) { phrase(next); next += .19 + Math.random() * .06; }
+        if (next < sec - .3) setTimeout(chunk, 3000);
+      };
+      chunk(); return true;
+    } catch (e) { return false; }
+  }
+  // part91: হোমের ঢোকার শব্দ (কিচিরমিচির/mp3) চ্যাটে ঢুকলে, অন্য পেইজে গেলে বা ট্যাব/অ্যাপ ব্যাকগ্রাউন্ডে গেলে সঙ্গে সঙ্গে থামে (আগে কিছুই থামাত না — লম্বা সময় দেওয়া থাকলে চ্যাটেও বাজতেই থাকত)
+  function inChat() { return location.hash === "#anon" || !!document.getElementById("acx"); }
+  function stopEntrySnd() { E3++; try { Object.keys(SA).forEach(function (k) { var a = SA[k]; if (a) { clearTimeout(a._t); a._p = false; try { a.pause(); } catch (e) {} } }); } catch (e) {} }
+  if (!window.BG12_MANUAL) {
+    window.addEventListener("hashchange", function () { if (location.hash !== "" && location.hash !== "#home") stopEntrySnd(); });
+    document.addEventListener("visibilitychange", function () { if (document.hidden) stopEntrySnd(); });
+    window.addEventListener("pagehide", stopEntrySnd);
+  }
+  var EDONE = false;
+  // মালিকের নির্দেশ (part92): ঢোকার শব্দ প্রথম ক্লিক/ট্যাপে শুরু, সর্বোচ্চ ৫ সেকেন্ড, তারপর নিজে অফ; পেইজ লোডে একবারই (হোমে ফিরলেও আর নয়); চ্যাট/অন্য পেইজে গেলে বাজে না। পাখি/মাছে ট্যাপের শব্দ আগের মতোই।
+  function entryOnce() {
+    if (EDONE || window.BG12_MANUAL) return; EDONE = true; if (!SND.ho || inChat()) return;
+    var evs = ["pointerdown", "touchend", "click", "keydown"], h0 = location.hash;
+    var h = function () {
+      evs.forEach(function (e) { document.removeEventListener(e, h, true); });
+      if (inChat() || document.hidden || location.hash !== h0) return;
+      var it = clipOf("h"), bad = false;
+      if (it) playClip(it, function () { if (!bad) { bad = true; chirp3(true, SND.hs); } }, false, 5); else chirp3(true, SND.hs);
+    };
+    evs.forEach(function (e) { document.addEventListener(e, h, true); });
+  }
+  // b9: ক্লিক-শব্দ — প্রতিবার ক্লিকে শুরু থেকে নতুন করে বাজে, কিন্তু প্রথম ক্লিক থেকে মোট ৩ সেকেন্ডের বেশি নয় (৩/১০ বার ক্লিকেও ৩ সেকেন্ডে থামে); থামার পর ক্লিকে নতুন ৩ সেকেন্ড
+  var CLICK_MAX = 3;
+  function clickClip(it, onFail) {
+    var a0 = SA[it.id], nw = Date.now(), b0 = a0 && a0._p && a0._b ? a0._b : nw, rem = CLICK_MAX - (nw - b0) / 1000;
+    if (rem < .15) { b0 = nw; rem = CLICK_MAX; }
+    var a = playClip(it, onFail, false, rem); a._b = b0;
+  }
+  function chirp() { if (!SND.bo) return; var it = clipOf("b"); if (it) { var nw = Date.now(); if (nw - lastClip < 250) return; lastClip = nw; clickClip(it, chirp0); return; } chirp0(); }
+  function splashSnd() { if (!SND.fo) return; var it = clipOf("f"); if (it) { var nw = Date.now(); if (nw - lastClip < 250) return; lastClip = nw; clickClip(it, splash0); return; } splash0(); }
+
   var AC = null, lastChirp = 0;
-  function chirp() {
+  function chirp0() {
     try {
       var nw = Date.now(); if (nw - lastChirp < 350) return; lastChirp = nw;
-      if (localStorage.getItem("fa_gate_snd") === "0") return;
       var C = window.AudioContext || window.webkitAudioContext; if (!C) return;
       if (!AC) AC = new C(); if (AC.state === "suspended") AC.resume();
       var t0 = AC.currentTime, n = 3 + Math.floor(Math.random() * 3), i, o, g, t, f0;
@@ -559,6 +642,29 @@
         o.type = "sine"; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f0 * (1.55 + Math.random() * .4), t + .06); o.frequency.exponentialRampToValueAtTime(f0 * .88, t + .1);
         g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.16, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + .11);
         o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + .12);
+      }
+    } catch (e) {}
+  }
+
+  // part65: মাছে ট্যাপ করলে পানিতে ঝপাৎ-ছলাৎ শব্দ (ব্রাউজারেই বানানো; দরজার শব্দের সুইচের সাথে সম্পর্ক নেই — সব সময় চালু)
+  var lastSplash = 0;
+  function splash0() {
+    try {
+      var nw = Date.now(); if (nw - lastSplash < 300) return; lastSplash = nw;
+      var C = window.AudioContext || window.webkitAudioContext; if (!C) return;
+      if (!AC) AC = new C(); if (AC.state === "suspended") AC.resume();
+      var t = AC.currentTime, len = Math.floor(AC.sampleRate * .35), buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0), i;
+      for (i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
+      var ns = AC.createBufferSource(), bp = AC.createBiquadFilter(), g = AC.createGain();
+      ns.buffer = buf; bp.type = "bandpass"; bp.frequency.setValueAtTime(1800, t); bp.frequency.exponentialRampToValueAtTime(500, t + .3); bp.Q.value = .9;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.32, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .34);
+      ns.connect(bp); bp.connect(g); g.connect(AC.destination); ns.start(t); ns.stop(t + .36);
+      var n = 2 + Math.floor(Math.random() * 2), o, g2, tt, f0;
+      for (i = 0; i < n; i++) {
+        tt = t + .04 + i * .09 + Math.random() * .03; f0 = 260 + Math.random() * 160; o = AC.createOscillator(); g2 = AC.createGain();
+        o.type = "sine"; o.frequency.setValueAtTime(f0, tt); o.frequency.exponentialRampToValueAtTime(f0 * 2.3, tt + .09);
+        g2.gain.setValueAtTime(.0001, tt); g2.gain.exponentialRampToValueAtTime(.2, tt + .01); g2.gain.exponentialRampToValueAtTime(.0001, tt + .12);
+        o.connect(g2); g2.connect(AC.destination); o.start(tt); o.stop(tt + .13);
       }
     } catch (e) {}
   }
@@ -591,11 +697,11 @@
   function toImg(cx, cy) { var r = svg.getBoundingClientRect(), s = r.width / IW; return { x: (cx - r.left) / s, y: (cy - r.top) / s, s: s }; }
   function bSc() { return 1.05 * CFG.size * CFG.bsz * (TH.bird.sc || 1); }
 
-  function birdTap(b, px, py) {
+  function birdTap(b, px, py, snd) {
     if (b.ind && (b.st === "flee" || b.st === "gone" || b.st === "back")) { if (b.st !== "back") return; }
     if (!b.ind) { b.ind = true; b.mx = b.cx; b.my = b.cy; b.fd = b.cdir || 1; }
     var dx = b.mx - px, sg = dx >= 0 ? 1 : -1; if (Math.abs(dx) < 6) sg = b.fd || 1;
-    b.st = "flee"; b.vx = sg * rnd(640, 840); b.vy = -rnd(90, 210); b.fd = sg; b.t = 0; b.cd = 1.2; chirp();
+    b.st = "flee"; b.vx = sg * rnd(640, 840); b.vy = -rnd(90, 210); b.fd = sg; b.t = 0; b.cd = 1.2; if (snd) chirp(); // part66: ডাক শুধু আসল ক্লিক/ট্যাপে; হোভার/ডালে বসায় নয়
   }
   function hideB(b) { b.vis = false; b.g.setAttribute("opacity", 0); b.bub.g.setAttribute("opacity", 0); }
   function indBird(b, dt) {
@@ -611,7 +717,7 @@
       u = Math.min(1, b.t / 2.5); e = 1 - Math.pow(1 - u, 2.3);
       b.mx = b.sx + (PERCH[0] - b.sx) * e; b.my = b.sy + (py - b.sy) * e - Math.sin(u * Math.PI) * 34; b.ph += dt * (25 - 12 * u);
       rot = -u * u * 36;
-      if (u >= 1) { b.st = "perch"; b.t = 0; b.pt = rnd(18, 28); chirp(); }
+      if (u >= 1) { b.st = "perch"; b.t = 0; b.pt = rnd(18, 28); }
     } else if (b.st === "perch") {
       b.mx = PERCH[0]; b.my = py; perch = true; b.fd = -1; rot = -40 + Math.sin(T * 2.2 + b.ph) * 2.2;
       if (b.t > b.pt) { b.st = "leave"; b.t = 0; b.vx = -rnd(150, 230); b.vy = -rnd(30, 70); b.ph = 0; }
@@ -643,7 +749,7 @@
     if (t && t.closest && t.closest("a,button,input,select,textarea,label,[role=button],[contenteditable]")) return;
     if (!inHdr(e.clientX, e.clientY)) return;
     var h = hits(e.clientX, e.clientY, false), o = h.list[0];
-    if (o) { if (o.f) { if (o.f.mode === "swim") { o.f.nj = 0; o.f.big = true; } } else birdTap(o.b, h.q.x, h.q.y); } // মাছ লাফায়, পাখি ডেকে পালায় — আগের মতোই
+    if (o) { if (o.f) { splashSnd(); if (o.f.mode === "swim") { o.f.nj = 0; o.f.big = true; } } else birdTap(o.b, h.q.x, h.q.y, true); } // মাছ লাফায়, পাখি ডেকে পালায় — আগের মতোই
     zoomText(nextWord(), e.clientX, e.clientY); // মাছ/পাখি/খালি জায়গা — যেখানেই ট্যাপ, বাবল-লেখা ওঠে
   }
   function onMove(e) { PT.x = e.clientX; PT.y = e.clientY; PT.t = Date.now(); PT.on = true; }
@@ -666,7 +772,7 @@
     document.removeEventListener("pointermove", onMove);
   }
 
-  window.BG12 = { designs: DES, cfg: CFG, mount: mount, unmount: unmount, set: set, relayout: layout, isMounted: function () { return mounted; } };
+  window.BG12 = { demoEntry: function (sec) { return chirp3(true, sec); }, stopEntry: function () { stopEntrySnd(); }, playClip: playClip, okSrc: okSrc, designs: DES, cfg: CFG, mount: mount, unmount: unmount, set: set, relayout: layout, isMounted: function () { return mounted; } };
 
   // ====================== সাইটের জন্য নিজে চালু/বন্ধ ======================
   if (!window.BG12_MANUAL) {
@@ -677,12 +783,13 @@
       else if (host || raf) unmount();
     };
     var remote = function () {
-      var M = window.MC_CFG; if (!M || !M.url || !window.fetch) return;
-      fetch(String(M.url).replace(/\/$/, "") + "/rest/v1/mc2_bg12_cfg?id=eq.1&select=cfg", { headers: { apikey: M.key, Authorization: "Bearer " + M.key } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      var M = window.MC_CFG; if (!M || !M.url || !window.fetch) { entryOnce(); return; }
+      fetch(String(M.url).replace(/\/$/, "") + "/rest/v1/mc2_bg12_cfg?id=eq.1&select=cfg,door", { headers: { apikey: M.key, Authorization: "Bearer " + M.key } }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        var dd = d && d[0] && d[0].door; if (dd && typeof dd === "object") { var sn = dd.snd && typeof dd.snd === "object" ? dd.snd : { fo: true, bo: true, lib: [] }; try { localStorage.setItem("bg12snd", JSON.stringify(sn)); } catch (e) {} sndSet(sn); }
         var c = d && d[0] && d[0].cfg; if (!c || typeof c !== "object") return; var o = {}, k;
         for (k in c) if (CFG.hasOwnProperty(k) && typeof c[k] === typeof CFG[k]) o[k] = c[k];
         try { localStorage.setItem("bg12cfg", JSON.stringify(o)); } catch (e) {} set(o);
-      }).catch(function () {});
+      }).catch(function () {}).then(entryOnce);
     };
     var init = function () {
       sync(); remote();
