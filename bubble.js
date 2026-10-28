@@ -6,12 +6,14 @@
   var BN = "০১২৩৪৫৬৭৮৯", bd = function (n) { return String(n).replace(/\d/g, function (d) { return BN[d]; }); };
   var esc = function (t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var EM = ["❤️", "🎉", "⭐", "🌹", "🔥", "😂", "👏", "🎈", "💖", "🌸", "🎁", "🍀", "😍", "✨"];
-  var COL = { white: "#ffffff", gold: "#f59e0b", pink: "#ec4899", green: "#16a34a", blue: "#3b82f6" }, COLN = { white: "সাদা", gold: "সোনালি", pink: "গোলাপি", green: "সবুজ", blue: "নীল" };
+  var COL = { white: "#ffffff", gold: "#f59e0b", pink: "#ec4899", green: "#16a34a", blue: "#3b82f6", auto: "linear-gradient(135deg,#f43f5e,#f59e0b,#22c55e,#3b82f6,#a855f7)" }, COLN = { auto: "🌈 রঙিন (প্রতিবার আলাদা)", white: "সাদা", gold: "সোনালি", pink: "গোলাপি", green: "সবুজ", blue: "নীল" };
+  var NBC = { sun: ["#fff7a8", "#7a1038"], ocean: ["#bbf7d0", "#064e3b"], grape: ["#fde68a", "#4c1d95"], mint: ["#fef08a", "#134e4a"], fire: ["#ffffff", "#991b1b"], sky: ["#fff7ae", "#3730a3"], candy: ["#e0f2fe", "#9d174d"], lime: ["#ffffff", "#14532d"] };
+  var AUTOC = ["sun", "ocean", "grape", "mint", "fire", "sky", "candy", "lime"]; // রঙিন বাবলের র‍্যান্ডম সাজ
   var ANIMS = ["বড় হয়ে ঠাস করে বসা", "ওপর থেকে আছড়ে পড়া", "বড় হয়ে বসে + টাইপরাইটার", "নিচ থেকে ভেসে এসে ঠাস", "ঘুরতে ঘুরতে বড় হয়ে বসা", "ঝাপসা বড় থেকে পরিষ্কার", "অনেক বড় জুম-ইন ঠাস", "বাঁ-ডান দুলে বসা", "ফ্লিপ হয়ে বসা", "তারার ঝিলিক সহ ঠাস", "ধোঁয়া থেকে ঠাস"];
   var DEF = { speed: 30, design: "auto", anim: 0, rnd: true, max: 50, sec: 1.5, snd: true, inChat: true, outChat: false, userShow: true, anonOn: true, userAnim: false, userColor: false, userEmoji: false,
-    showSender: false, showAnon: false, notify: false, vis: "all", admSee: true, pos: "top", size: 3, color: "white", emoji: "rnd", kill: false, lim: { n: { m: 1, t: 3 }, a: { m: 1, t: 3 } } };
+    showSender: false, showAnon: false, notify: false, vis: "all", keepDays: 7, admSee: true, pos: "top", size: 3, color: "auto", emoji: "rnd", kill: false, lim: { n: { m: 1, t: 3 }, a: { m: 1, t: 3 } } };
   var P = [["#e11d48", "#9f1239"], ["#2563eb", "#1e3a8a"], ["#059669", "#065f46"], ["#d97706", "#92400e"], ["#7c3aed", "#4c1d95"], ["#0891b2", "#155e75"], ["#db2777", "#831843"], ["#4d7c0f", "#365314"]];
-  var CFG = JSON.parse(JSON.stringify(DEF)), ME = { u: "", mu: false, lm: 0, lt: 0 }, X = null, LAST = -1, TM = [], SEEN = {}, AUTO = true, DS = 1, NAMES = "", ONL = 0, NOTE = null, AC = null;
+  var CFG = JSON.parse(JSON.stringify(DEF)), ME = { u: "", mu: false, lm: 0, lt: 0 }, X = null, LAST = -1, TM = [], SEEN = {}, MISS = 0, AUTO = true, DS = 1, NAMES = "", ONL = 0, NOTE = null, AC = null;
   function merge(c) { var o = JSON.parse(JSON.stringify(DEF)); if (c && typeof c === "object") { Object.keys(DEF).forEach(function (k) { if (k === "lim") { ["n", "a"].forEach(function (g) { ["m", "t"].forEach(function (q) { var v = c.lim && c.lim[g] && +c.lim[g][q]; if (v > 0) o.lim[g][q] = v; }); }); } else if (c.hasOwnProperty(k) && typeof c[k] === typeof DEF[k]) o[k] = c[k]; }); } return o; }
   function clen(s) { return Array.from(String(s || "")).length; }
   function hold(s) { return Math.max(1, Math.ceil(clen(s) / 10)) * (CFG.sec > 0 ? CFG.sec : 1.5); }
@@ -26,6 +28,7 @@
       ".faolt{display:flex;align-items:center;gap:7px;padding:0 10px 3px 12px;font-size:13px;font-weight:700;color:#1d6b43}@media(prefers-color-scheme:dark){.faolt{color:#4cc183}}" +
       ".fadot{width:9px;height:9px;border-radius:50%;background:#22c55e;animation:faPl 1.8s infinite;flex:none}@keyframes faPl{0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}70%{box-shadow:0 0 0 8px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}" +
       ".faolt em{font-style:normal;font-weight:500;opacity:.7}.faot{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@media(max-width:380px){.faolt{font-size:12px;gap:5px}.faab{font-size:10px;padding:3px 8px 8px}}" +
+      ".fasp{margin:-3px 0 -5px auto;flex:none;border:0;font:inherit;font-size:11px;line-height:1.2;font-weight:700;color:#3b2a00;padding:3px 10px 9px;cursor:pointer;background:linear-gradient(160deg,#fcd34d,#d97706);clip-path:polygon(0 0,100% 0,100% 62%,88% 84%,50% 100%,12% 84%,0 62%);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));white-space:nowrap}.fasp:not([style*=none])+.faab{margin-left:6px}" +
       ".faab{margin:-3px 0 -5px auto;flex:none;border:0;font:inherit;font-size:11px;line-height:1.2;font-weight:700;color:#fff;padding:3px 10px 9px;cursor:pointer;background:linear-gradient(160deg,#7c3aed,#4c1d95);clip-path:polygon(0 0,100% 0,100% 62%,88% 84%,50% 100%,12% 84%,0 62%);filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));white-space:nowrap}" +
       ".favp{overflow:hidden;position:relative;height:28px;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}" +
       ".fatr{position:absolute;left:0;top:0;display:flex;gap:12px;white-space:nowrap;will-change:transform}" +
@@ -42,8 +45,21 @@
       ".fabub::before{content:'';position:absolute;left:14px;right:14px;top:3px;height:42%;border-radius:20px 20px 60% 60%/20px 20px 14px 14px;background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,0));pointer-events:none}" +
       ".fabub::after{content:'';position:absolute;left:50%;bottom:-8px;width:18px;height:18px;margin-left:-9px;background:inherit;border-right:1.5px solid rgba(255,255,255,.7);border-bottom:1.5px solid rgba(255,255,255,.7);border-radius:0 0 6px 0;transform:rotate(45deg);z-index:-1}" +
       ".fabub small{display:table;margin:0 auto 6px;font-size:11.5px;font-weight:700;letter-spacing:.3px;padding:2px 11px;border-radius:999px;background:rgba(0,0,0,.16);color:inherit;opacity:.95}.fabub .at{opacity:.95;margin-right:6px;font-weight:800}.fabub .tx{position:relative}" +
+      ".fafl{position:relative}" +
+      ".fahd{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;margin-bottom:-34px;pointer-events:none}" +
+      ".fase{position:relative;z-index:2;max-width:100%;box-sizing:border-box;margin-bottom:-9px;padding:3px 16px;border-radius:999px;font-weight:800;font-size:max(12px,.5em);line-height:1.35;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--nb,#e2e8f0);color:var(--nc,#334155);border:2px solid var(--nc,#334155);box-shadow:0 0 0 2px var(--nb,#e2e8f0),0 4px 10px rgba(0,0,0,.3);transform:rotate(-3deg)}" +
+      ".faav{position:relative;display:block;width:68px;height:68px;box-sizing:border-box;border-radius:50%;overflow:hidden;background:linear-gradient(160deg,#fff,var(--nb,#e2e8f0));border:4px solid #fff;box-shadow:0 6px 16px rgba(0,0,0,.35)}.faav svg{display:block;width:100%;height:100%}.faav svg *{fill:var(--nc,#334155)}" +
+      ".faw{position:relative;display:block;width:68px;height:68px;flex:none}" +
+      ".faav .fal{display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:32px;font-weight:800;line-height:1;color:var(--nc,#334155);font-family:inherit;white-space:nowrap}" +
+      ".fabd{position:absolute;right:-8px;bottom:-4px;z-index:2;width:24px;height:24px;box-sizing:border-box;border-radius:50%;background:var(--nc,#334155);color:var(--nb,#e2e8f0);border:2px solid #fff;display:flex;align-items:center;justify-content:center;font:800 14px/1 system-ui,sans-serif;box-shadow:0 2px 5px rgba(0,0,0,.3)}" +
+      ".fabw{color-scheme:light;forced-color-adjust:none}" + // বাবলের সাজ ডিফল্ট: দিন/রাত/সেভার/ফোর্স-ডার্ক কোনো মোডেই বদলাবে না
+      ".fahd+.fabub{padding-top:50px}" +
       ".fsz1{font-size:18px}.fsz2{font-size:23px}.fsz3{font-size:30px}" +
       ".fc-white{background:#fff;color:#10261b;border:2px solid #cfe0d5}.fc-gold{background:linear-gradient(135deg,#fde68a,#f59e0b);color:#451a03}.fc-pink{background:linear-gradient(135deg,#fbcfe8,#ec4899);color:#500724}.fc-green{background:linear-gradient(135deg,#86efac,#16a34a);color:#052e16}.fc-blue{background:linear-gradient(135deg,#bfdbfe,#3b82f6);color:#0b1e4a}" +
+      ".fabub[class*='fc-'] .at{display:inline-block;padding:1px 11px;border-radius:999px;background:var(--nb,#fff);color:var(--nc,#10261b);box-shadow:0 2px 6px rgba(0,0,0,.25);text-shadow:none}" +
+      ".fc-sun{background:linear-gradient(135deg,#ff9a3c,#ff3d77 55%,#c026d3);color:#fff;--nb:#fff7a8;--nc:#7a1038}.fc-ocean{background:linear-gradient(135deg,#06b6d4,#2563eb 60%,#4f46e5);color:#fff;--nb:#bbf7d0;--nc:#064e3b}.fc-grape{background:linear-gradient(135deg,#a855f7,#6d28d9 60%,#be185d);color:#fff;--nb:#fde68a;--nc:#4c1d95}.fc-mint{background:linear-gradient(135deg,#34d399,#0d9488 60%,#0369a1);color:#fff;--nb:#fef08a;--nc:#134e4a}" +
+      ".fc-fire{background:linear-gradient(135deg,#facc15,#f97316 50%,#dc2626);color:#fff;--nb:#fff;--nc:#991b1b}.fc-sky{background:linear-gradient(135deg,#38bdf8,#818cf8 60%,#e879f9);color:#fff;--nb:#fff7ae;--nc:#3730a3}.fc-candy{background:linear-gradient(135deg,#fb7185,#f472b6 50%,#fb923c);color:#fff;--nb:#e0f2fe;--nc:#9d174d}.fc-lime{background:linear-gradient(135deg,#a3e635,#22c55e 55%,#0891b2);color:#fff;--nb:#fff;--nc:#14532d}" +
+      ".fabub[class*='fc-']:not(.fc-white):not(.fc-gold):not(.fc-pink):not(.fc-green):not(.fc-blue) .tx{text-shadow:0 2px 5px rgba(0,0,0,.35)}" +
       ".fax{position:absolute;top:-15px;right:-6px;width:36px;height:36px;border-radius:50%;border:2px solid #fff;background:rgba(16,38,27,.92);color:#fff;font:700 17px/1 system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;pointer-events:auto;z-index:5;box-shadow:0 3px 10px rgba(0,0,0,.4)}.fax:active{transform:scale(.9)}.farain{position:absolute;top:-30px;font-size:22px;pointer-events:none;z-index:91}.faspk{position:absolute;pointer-events:none;font-size:16px}" +
       ".facmp{position:absolute;left:10px;right:10px;bottom:120px;z-index:95;max-width:460px;margin:0 auto;background:var(--bg,#fff);color:var(--fg,#10261b);border:1px solid rgba(128,128,128,.4);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:8px 10px;font-size:13px}" +
       ".facmp,.facmp *,.fash,.fash *{box-sizing:border-box}" +
@@ -107,35 +123,55 @@
     if (off) [].forEach.call(document.querySelectorAll(".fabl .fabw"), function (w) { w.remove(); });
     note(off ? "💬 আপনার জন্য বাবল বন্ধ। ⋯ মেনু থেকে আবার চালু করতে পারবেন।" : "💬 বাবল আবার চালু হয়েছে");
   }
+  // নামের প্রথম অক্ষর (গ্রাফিম): শুরুর "@", স্পেস, ইমোজি বাদ; যুক্তাক্ষর/কার ভাঙে না ("স্নেহা" → "স্নে")। textContent-এ বসে, তাই নাম কখনো HTML হিসেবে চলে না
+  function firstLetter(n) {
+    var s = String(n == null ? "" : n).replace(/^[\s@]+/, "");
+    try { s = s.replace(new RegExp("^(?:[\\s@]|\\p{Extended_Pictographic}|\\p{Emoji_Modifier}|\\p{Regional_Indicator}|\\u200d|\\ufe0f)+", "u"), ""); } catch (e) {}
+    if (!s) return "";
+    var g = "";
+    try { if (window.Intl && Intl.Segmenter) { var it = new Intl.Segmenter("bn", { granularity: "grapheme" }).segment(s)[Symbol.iterator]().next(); g = it && it.value ? it.value.segment : ""; } } catch (e) {}
+    if (!g) { try { var m = s.match(new RegExp("^\\P{M}\\p{M}*(?:\\u09CD\\P{M}\\p{M}*)*", "u")); g = m ? m[0] : ""; } catch (e) {} }
+    if (!g) g = Array.from(s)[0] || "";
+    g = g.replace(/\s+/g, "");
+    return /[a-z]/i.test(g) ? g.toUpperCase() : g;
+  }
   function bubble(o, quiet) {
     if (CFG.kill && !o.force) return;
     if (!o.force && myOff()) return;
     if (!o.force && X) { var sh = chatShown(); if (sh ? !CFG.inChat : !CFG.outChat) return; } // অ্যাডমিন সুইচ: চ্যাটের ভেতরে / বাইরে বাবল চালু-বন্ধ
-    var a = o.a != null ? +o.a : (CFG.rnd ? Math.floor(Math.random() * 11) : CFG.anim), col = o.c || (o.sp ? "gold" : CFG.color), em = o.e != null && o.e !== "" ? o.e : CFG.emoji;
-    var wrap = document.createElement("div"); wrap.className = "fabw";
-    var el = document.createElement("div"); el.className = "fabub fc-" + col + " fsz" + CFG.size; wrap.appendChild(el);
-    var h = "";
-    if (o.sp) h += "<small>🎉 বিশেষ বার্তা</small>";
-    else if (o.f) h += "<small>💬 " + esc(o.f) + (o.to ? " ➜ @" + esc(o.to) : " ➜ সবাই" + (o.an ? " (বেনামি)" : "")) + "</small>";
-    else if (o.an) h += "<small>💬 বেনামি বাবল</small>";
-    var showTo = o.to && !(o.f && !o.sp);
-    h += (showTo ? '<span class="at">@' + esc(o.to) + "</span>" : "") + '<span class="tx">' + (a === 2 ? "" : esc(o.t)) + "</span>"; el.innerHTML = h;
+    var a = o.a != null ? +o.a : (CFG.rnd ? Math.floor(Math.random() * 11) : CFG.anim), col = o.c || (o.sp ? "gold" : CFG.color); if (col === "white" || col === "auto") col = AUTOC[Math.floor(Math.random() * AUTOC.length)]; var em = o.e != null && o.e !== "" ? o.e : CFG.emoji;
+    var wrap = document.createElement("div"); wrap.className = "fabw fsz" + CFG.size;
+    var nbc = NBC[col]; if (nbc) { wrap.style.setProperty("--nb", nbc[0]); wrap.style.setProperty("--nc", nbc[1]); }
+    // বাবলের ঠিক মাঝখানে ওপরে: গোল ফ্রেম (নামে পাঠালে প্রাপকের নামের প্রথম অক্ষর + "@" ব্যাজ, নইলে ছায়ামূর্তি), তার ওপর হেলানো পিল; নিচে শুধু লেখা
+    var toN = o.to ? String(o.to).replace(/^[\s@]+/, "").trim() : "", named = !o.sp && !!toN, who = o.f ? String(o.f) : "";
+    var nm = o.sp ? "🎉 বিশেষ বার্তা" : named ? (who ? who + " ➜ " : "") + toN + "কে" : o.an ? (who ? who + " (বেনামি)" : "বেনামি") + " ➜ সবাইকে" : (who ? who + " ➜ " : "") + "সবাইকে";
+    var inner = document.createElement("div"); inner.className = "fafl"; wrap.appendChild(inner);
+    var hd = document.createElement("div"); hd.className = "fahd";
+    hd.innerHTML = '<span class="fase"></span><span class="faw"><span class="faav"></span></span>';
+    hd.firstChild.textContent = nm;
+    var av = hd.querySelector(".faav"), lt = named ? firstLetter(toN) : "";
+    if (lt) { var ls = document.createElement("span"); ls.className = "fal"; ls.textContent = lt; av.appendChild(ls); }
+    else av.innerHTML = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="25" r="11"/><path d="M9 64c0-14 10-23 23-23s23 9 23 23z"/></svg>';
+    if (lt) { var bd2 = document.createElement("span"); bd2.className = "fabd"; bd2.textContent = "@"; hd.querySelector(".faw").appendChild(bd2); }
+    inner.appendChild(hd);
+    var el = document.createElement("div"); el.className = "fabub fc-" + col + " fsz" + CFG.size; inner.appendChild(el);
+    el.innerHTML = '<span class="tx">' + (a === 2 ? "" : esc(o.t)) + "</span>";
     var L = layer(); L.appendChild(wrap); if (!quiet) beep();
     var xb = document.createElement("button"); xb.type = "button"; xb.className = "fax"; xb.setAttribute("aria-label", "বাবল বন্ধ করুন"); xb.textContent = "✕"; wrap.appendChild(xb);
     xb.onclick = function (ev) { ev.stopPropagation(); wrap.remove(); };
-    var IN = .85, OUT = .8, H2 = hold(o.t), D = (IN + H2 + OUT) * 1000, k = KF[a] || KF[0];
-    var ex = a === 10 ? { opacity: 0, transform: "translateY(-70px) scale(1.2)", filter: "blur(16px)" } : { opacity: 0, transform: "translateY(-90px) scale(1.06)" };
+    var IN = .85, OUT = 2.2, H2 = hold(o.t), D = (IN + H2 + OUT) * 1000, k = KF[a] || KF[0];
+    var ex = a === 10 ? { opacity: 0, transform: "scale(.1)", filter: "blur(10px)" } : { opacity: 0, transform: "scale(.1)" }; // শেষে: ধীরে বড় থেকে ছোট হয়ে মিলিয়ে যায়
     var f = [Object.assign({ offset: 0, easing: "cubic-bezier(.17,1.45,.35,1)" }, k[0]),
       Object.assign({ offset: IN * 1000 / D }, k[1]),
       Object.assign({ offset: (IN + H2) * 1000 / D, easing: "ease-in" }, k[1]), Object.assign({ offset: 1 }, ex)];
     f[0].opacity = 0; f[1].opacity = 1;
     wrap.animate(f, { duration: D, fill: "both" }).onfinish = function () { wrap.remove(); };
     // ভাসা: বসার পর হালকা ওঠানামা
-    el.animate([{ transform: "translateY(0)" }, { transform: "translateY(-7px)" }, { transform: "translateY(0)" }], { duration: 2400, delay: IN * 700, iterations: Infinity, easing: "ease-in-out" });
+    inner.animate([{ transform: "translateY(0)" }, { transform: "translateY(-7px)" }, { transform: "translateY(0)" }], { duration: 2400, delay: IN * 700, iterations: Infinity, easing: "ease-in-out" });
     // ঠাস: বসার মুহূর্তে শকওয়েভ রিং + স্ক্রিন কাঁপুনি + ধপ শব্দ
     setTimeout(function () {
       if (!wrap.parentNode) return;
-      var ring = document.createElement("i"); ring.className = "fari"; wrap.appendChild(ring);
+      var ring = document.createElement("i"); ring.className = "fari"; el.appendChild(ring);
       ring.animate([{ opacity: .7, transform: "scale(1)" }, { opacity: 0, transform: "scale(1.7,2.4)" }], { duration: 650, easing: "ease-out" }).onfinish = function () { ring.remove(); };
       try { L.animate([{ transform: "translate(0,0)" }, { transform: "translate(-5px,4px)" }, { transform: "translate(5px,-4px)" }, { transform: "translate(-3px,2px)" }, { transform: "translate(0,0)" }], { duration: 300 }); } catch (e) {}
       if (!quiet) thud();
@@ -255,21 +291,49 @@
       }).catch(function () { busy = false; er.textContent = "পাঠানো যায়নি — SQL-20 চালানো আছে কি? নেটওয়ার্কও দেখুন।"; });
     };
   }
+  // শুধু অ্যাডমিন: বিশেষ বাবল (সব রুমে সবাইকে) — অ্যাডমিন প্যানেলের "🎉 বিশেষ দিনের বাবল"-এর মতোই (mc2_admin_bub_special)
+  function openSpecial() {
+    if (!X || !X.adm()) return; closeCmp();
+    var c = document.createElement("div"); c.className = "facmp";
+    c.innerHTML = '<button class="fax2" id="faCl" type="button" aria-label="বন্ধ করুন">✕</button><h4>🎉 বিশেষ বাবল (অ্যাডমিন → সব রুমে সবাইকে)</h4><textarea id="faTx" maxlength="200" placeholder="এখানে লিখুন…">🎂 শুভ জন্মদিন! আজ আমাদের এক বন্ধুর বিশেষ দিন।</textarea><div class="fa-err" id="faEr"></div><div class="fa-row"><button type="button" class="fabtn" id="faSd">🎉 সবাইকে পাঠান</button></div>';
+    X.root.appendChild(c);
+    var ta = c.querySelector("#faTx"), er = c.querySelector("#faEr"), busy = false; try { ta.focus(); ta.select(); } catch (e) {}
+    c.querySelector("#faCl").onclick = closeCmp;
+    c.querySelector("#faSd").onclick = function () {
+      if (busy) return; var t = ta.value.trim(); er.textContent = ""; if (!t) { er.textContent = "কিছু লিখুন"; return; } busy = true;
+      X.arpc("mc2_admin_bub_special", { p_body: t, p_emoji: "🎉", p_anim: 9, p_color: "gold" }).then(function () { busy = false; closeCmp(); note("✔ বিশেষ বাবল পাঠানো হয়েছে (৩-৪ সেকেন্ডে সবার কাছে যাবে)"); }).catch(function (e) { busy = false; er.textContent = "✖ " + (e && e.message ? String(e.message).slice(0, 80) : "হয়নি"); });
+    };
+  }
   function note(m) { if (!X) return; var e = X.root.querySelector(".fatoast"); if (!e) { e = document.createElement("div"); e.className = "fatoast"; X.root.appendChild(e); } e.textContent = m; e.style.display = "block"; clearTimeout(NOTE); NOTE = setTimeout(function () { e.style.display = "none"; }, 3200); }
 
   // ---------------- পোলিং ----------------
   function applyCfg(c) {
     var old = JSON.stringify([CFG.speed, CFG.design]); CFG = merge(c);
-    if (!X) return; var ab = X.root.querySelector(".faab"); if (ab) ab.style.display = (CFG.anonOn || X.adm()) ? "" : "none";
+    if (!X) return; var ab = X.root.querySelector(".faab"); if (ab) ab.style.display = (CFG.anonOn || X.adm()) ? "" : "none"; var sp = X.root.querySelector(".fasp"); if (sp) sp.style.display = X.adm() ? "" : "none";
     X.root.classList.toggle("fa-adm", !!X.adm());
     if (old !== JSON.stringify([CFG.speed, CFG.design])) { AUTO = CFG.design === "auto"; if (!AUTO) setDesign(+CFG.design || 1); else speed(); }
   }
+  // part163: নামে-পাঠানো বাবল প্রাপক না দেখলে (অফলাইন/ট্যাব লুকানো) পরে চ্যাটে এলে আবার দেখায়, ৭ দিন পর্যন্ত — SQL-37 (না চালালে চুপচাপ কিছুই হয় না)
+  function canShow() { return !!X && !CFG.kill && !myOff() && (chatShown() ? !!CFG.inChat : !!CFG.outChat); }
+  function markSeen(ids) { if (!X || !ids.length) return; try { var r = X.rpc("mc2_bub_seen", { p_voter: X.vid(), p_ids: ids }); if (r && r.catch) r.catch(function () {}); } catch (e) {} }
+  function missed() {
+    if (!X || !canShow()) { MISS = 0; return; }
+    X.rpc("mc2_bub_missed", { p_session: +X.cur().s, p_voter: X.vid() }).then(function (L) {
+      if (!Array.isArray(L) || !X) return; var ids = [];
+      L.forEach(function (it, i) {
+        if (SEEN[it.id]) return; SEEN[it.id] = 1; ids.push(it.id);
+        setTimeout(function () { if (!X || !canShow()) return; var vis = chatShown() || !!CFG.outChat; bubble({ t: it.t, to: it.to, f: it.f, an: it.an, sp: it.sp, a: it.a, c: it.c, e: it.e }, !vis); }, i * 2500);
+      });
+      if (ids.length && canShow()) markSeen(ids); else ids.forEach(function (id) { delete SEEN[id]; });
+    }).catch(function () {});
+  }
   function poll() {
     if (X && !document.body.contains(X.root)) { unmount(); return; }
-    if (!X || document.hidden) return;
+    if (!X) return; if (document.hidden) { MISS = 0; return; }
     X.rpc("mc2_bub_get", { p_session: +X.cur().s, p_after: LAST, p_voter: X.vid() }).then(function (r) {
       if (!r || !X) return; ME = r.me || ME; applyCfg(r.cfg); var first = LAST < 0; LAST = Math.max(LAST, +r.last || 0);
       if (first) loadNames();
+      if (!MISS && !CFG.kill) { MISS = 1; setTimeout(missed, 1200); } // চ্যাটে ঢুকলে/ট্যাবে ফিরলে একবার না-দেখা বাবল খোঁজে
       if (first || CFG.kill) return;
       (r.items || []).forEach(function (it) {
         if (SEEN[it.id]) return; SEEN[it.id] = 1;
@@ -277,6 +341,7 @@
         if (CFG.vis === "to" && !it.sp && !it.an && it.tu && it.tu !== ME.u && !(CFG.admSee && X.adm())) return;
         if (it.tu && it.tu === ME.u && CFG.notify && !it.sp) note("💬 " + (it.f || "কেউ একজন") + " আপনাকে একটা বাবল পাঠিয়েছেন");
         var vis = chatShown() || !!CFG.outChat; bubble({ t: it.t, to: it.to, f: it.f, an: it.an, sp: it.sp, a: it.a, c: it.c, e: it.e }, !vis);
+        if (it.tu && it.tu === ME.u && !it.sp && canShow()) markSeen([it.id]); // সরাসরি দেখলে আর পরে দেখাবে না
       });
     }).catch(function () {});
   }
@@ -284,10 +349,10 @@
   // ---------------- মাউন্ট ----------------
   // x: { root, cur(), rpc(n,a), arpc(n,a), vid(), adm(), input() }
   function mount(x) {
-    unmount(); css(); X = x; LAST = -1; SEEN = {}; SEENU = {}; NAMES = ""; CI = 0; AUTO = true; DS = 1;
+    unmount(); css(); X = x; LAST = -1; MISS = 0; SEEN = {}; SEENU = {}; NAMES = ""; CI = 0; AUTO = true; DS = 1;
     var R = x.root; R.classList.add("fa-st");
     var o = document.createElement("div"); o.className = "faol";
-    o.innerHTML = '<div class="faolt"><span class="fadot"></span><span class="faot">এখন অনলাইনে আছেন <em>(' + bd(1) + ' জন)</em></span><button type="button" class="faab" style="display:none">💬 নাম ছাড়া বাবল</button></div><div class="favw"><div class="favp"><div class="fatr fad1"></div></div><button type="button" class="falk" aria-label="অ্যাডমিন সেটিং">🔒</button></div>';
+    o.innerHTML = '<div class="faolt"><span class="fadot"></span><span class="faot">এখন অনলাইনে আছেন <em>(' + bd(1) + ' জন)</em></span><button type="button" class="fasp" style="display:none">🎉 বিশেষ</button><button type="button" class="faab" style="display:none">💬 নাম ছাড়া বাবল</button></div><div class="favw"><div class="favp"><div class="fatr fad1"></div></div><button type="button" class="falk" aria-label="অ্যাডমিন সেটিং">🔒</button></div>';
     var T = R.querySelector("#acT"); if (T) R.insertBefore(o, T); else R.appendChild(o);
     var tr = o.querySelector(".fatr");
     tr.addEventListener("click", function (e) {
@@ -295,6 +360,7 @@
       if (canSend()) openCmp(t); else { note("💬 নামে ক্লিক করে বাবল পাঠানো এখন বন্ধ আছে"); if (!mine) { var i = x.input(); if (i) { i.value = "@" + t.n + " " + i.value; i.focus(); } } }
     });
     o.querySelector(".faab").onclick = function () { openCmp(null); };
+    o.querySelector(".fasp").onclick = function () { openSpecial(); };
     o.querySelector(".falk").onclick = function () { openSheet(this); };
     TM.push(setInterval(function () { if (!AUTO || !X) return; var t = X.root.querySelector(".fatr"); if (!t) return; t.classList.add("fasw"); setTimeout(function () { var q = X && X.root.querySelector(".fatr"); if (!q) return; setDesign(DS % 5 + 1); q.classList.remove("fasw"); }, 450); }, 15000));
     var vpEl = o.querySelector(".favp"); MX = vpEl.offsetWidth; LT = 0; HOLD = false; ["mouseenter", "touchstart"].forEach(function (n) { vpEl.addEventListener(n, function () { HOLD = true; }, { passive: true }); }); ["mouseleave", "touchend", "touchcancel"].forEach(function (n) { vpEl.addEventListener(n, function () { HOLD = false; }, { passive: true }); }); cancelAnimationFrame(RAF); RAF = requestAnimationFrame(tick);
@@ -336,7 +402,7 @@
         '<div class="f"><span>✨ ইমোজি বৃষ্টি</span><select id="faEm">' + o("rnd", "🔀 র‍্যান্ডম (যেকোনো একটা)", C.emoji) + o("none", "নেই", C.emoji) + EM.map(function (e) { return o(e, e, C.emoji); }).join("") + "</select></div></div></details>" +
         "<details><summary>🎬 অ্যানিমেশন (ক্লিক করলেই প্রিভিউ)</summary><div>" + sw("rnd", "🔀 র‍্যান্ডম — প্রতিবার যেকোনো একটা (ডিফল্ট)") + '<div class="faag">' + ANIMS.map(function (a, i) { return '<button type="button" data-a="' + i + '" class="' + (!C.rnd && C.anim === i ? "on" : "") + '">' + bd(i + 1) + ". " + a + "</button>"; }).join("") + '</div><div class="f"><button type="button" class="fabtn" id="faPv">▶ প্রিভিউ দেখুন</button></div></div></details>' +
         "<details open><summary>👥 ইউজারের জন্য সুইচ (নামে ক্লিক ও নাম ছাড়া শুরুতে চালু)</summary><div>" + sw("userShow", "👤 ইউজার নামে ক্লিক করে বাবল পাঠাতে পারবে") + sw("anonOn", '💬 "নাম ছাড়া বাবল" শিল্ড বাটন (ইউজারকে দেখাবে)') + sw("userAnim", "🎞 ইউজার অ্যানিমেশন বাছতে পারবে") + sw("userColor", "🎨 ইউজার রঙ বাছতে পারবে") + sw("userEmoji", "✨ ইউজার ইমোজি বৃষ্টি বাছতে পারবে") +
-        '<div class="f"><span>👁 নামে-পাঠানো বাবল কে দেখবে</span><select id="faVs">' + o("all", "সবাই দেখবে (ডিফল্ট)", C.vis) + o("to", "শুধু যাকে দিয়েছে সে দেখবে", C.vis) + "</select></div>" + sw("admSee", "🛡 \"শুধু যাকে দিয়েছে\" থাকলেও অ্যাডমিন সব বাবল দেখবে") + sw("showSender", '🏷 "কে পাঠাল" নাম দেখাবে (বেনামি বাদে)') + sw("showAnon", "🕵 কে কাকে পাঠাল — বেনামিসহ সবার নাম সবাইকে দেখাবে") + sw("notify", '🔔 "কে তোমাকে বাবল পাঠাল" নোটিফিকেশন') + "<small>বেনামির আসল নাম অ্যাডমিন লগে সবসময় দেখা যায়, এই সুইচ বন্ধ থাকলেও। নাম-ছাড়া বাবল ও বিশেষ দিনের বাবল কারও নির্দিষ্ট প্রাপক নেই, তাই সবসময় সবাই দেখে।</small></div></details>" +
+        '<div class="f"><span>👁 নামে-পাঠানো বাবল কে দেখবে</span><select id="faVs">' + o("all", "সবাই দেখবে (ডিফল্ট)", C.vis) + o("to", "শুধু যাকে দিয়েছে সে দেখবে", C.vis) + "</select></div>" + '<div class="f"><span>🕒 না-দেখা বাবল কত দিন মনে রাখবে (১–৩৬৫ দিন)</span><input type="number" id="faKd" min="1" max="365" value="' + (C.keepDays || 7) + '"></div><small>যাকে নাম ধরে বাবল দেওয়া হয়েছে সে অনলাইনে না থাকলে/না দেখলে, এই কয়দিনের মধ্যে চ্যাটে ঢুকলে বাবলটা আবার আসবে। বাবলের পুরোনো ডাটাও এই দিন পর মুছবে। (SQL-37 লাগে)</small>' + sw("admSee", "🛡 \"শুধু যাকে দিয়েছে\" থাকলেও অ্যাডমিন সব বাবল দেখবে") + sw("showSender", '🏷 "কে পাঠাল" নাম দেখাবে (বেনামি বাদে)') + sw("showAnon", "🕵 কে কাকে পাঠাল — বেনামিসহ সবার নাম সবাইকে দেখাবে") + sw("notify", '🔔 "কে তোমাকে বাবল পাঠাল" নোটিফিকেশন') + "<small>বেনামির আসল নাম অ্যাডমিন লগে সবসময় দেখা যায়, এই সুইচ বন্ধ থাকলেও। নাম-ছাড়া বাবল ও বিশেষ দিনের বাবল কারও নির্দিষ্ট প্রাপক নেই, তাই সবসময় সবাই দেখে।</small></div></details>" +
         "<details open><summary>⏱ স্প্যাম লিমিট (ডিফল্ট: ১ মিনিটে ১ বার · ১০ মিনিটে ৩ বার)</summary><div>" + ["n", "a"].map(function (k) { return "<b>" + (k === "n" ? "নামে ক্লিক করে বাবল" : "নাম ছাড়া বাবল") + '</b><div class="f"><span>১ মিনিটে</span><input type="number" min="1" data-l="' + k + 'm" value="' + C.lim[k].m + '"> বার</div><div class="f"><span>১০ মিনিটে</span><input type="number" min="1" data-l="' + k + 't" value="' + C.lim[k].t + '"> বার</div>'; }).join("") + "<small>ইউজার বাক্স খুললে ওপরে এই লিমিট লাল লেখায় দেখবে। অ্যাডমিনের লিমিট নেই।</small></div></details>" +
         "<details><summary>👤 ইউজার ধরে ধরে (বাবল বন্ধ / আলাদা লিমিট)</summary><div id='faUs'><small>লোড হচ্ছে…</small></div></details>" +
         "<details><summary>🎉 বিশেষ দিনের বাবল (অ্যাডমিন → সব রুমে সবাইকে)</summary><div><textarea id='faSp2' style='width:100%;height:50px' maxlength='200'>🎂 শুভ জন্মদিন! আজ আমাদের এক বন্ধুর বিশেষ দিন।</textarea><div class='f'><button type='button' class='fabtn' id='faSpb'>🎂 সবাইকে পাঠান</button><small id='faSpm'></small></div></div></details>" +
@@ -351,6 +417,7 @@
       q("#faDs").onchange = function () { C.design = this.value === "auto" ? "auto" : +this.value; save(); };
       q("#faMx").onchange = function () { C.max = Math.min(500, Math.max(5, +this.value || 50)); this.value = C.max; save(); };
       q("#faSc").onchange = function () { C.sec = Math.min(30, Math.max(.5, +this.value || 1.5)); this.value = C.sec; save(); };
+      q("#faKd").onchange = function () { C.keepDays = Math.min(365, Math.max(1, Math.round(+this.value) || 7)); this.value = C.keepDays; save(); };
       q("#faVs").onchange = function () { C.vis = this.value === "to" ? "to" : "all"; save(); };
       q("#faPs").onchange = function () { C.pos = this.value; save(); }; q("#faSz").onchange = function () { C.size = +this.value; save(); }; q("#faCl").onchange = function () { C.color = this.value; save(); }; q("#faEm").onchange = function () { C.emoji = this.value; save(); };
       [].forEach.call(host.querySelectorAll("[data-a]"), function (b) { b.onclick = function () { C.anim = +b.dataset.a; C.rnd = false; save(); draw(); preview(C.anim); }; });
@@ -382,5 +449,7 @@
       }).catch(function () { var b = host.querySelector("#faLg"); if (b) b.innerHTML = "<small>লোড হয়নি</small>"; });
     }
   }
-  window.faBub = { mount: mount, unmount: unmount, panel: panel, EM: EM, userOn: userOn, toggleUser: toggleUser };
+  window.faBub = { mount: mount, unmount: unmount, panel: panel, EM: EM, ANIMS: ANIMS, userOn: userOn, toggleUser: toggleUser,
+    // bubble-preview.html-এর জন্য: নেট/সার্ভার ছাড়া আসল বাবল দেখায় (সাইটের আর কোনো ফাইল এটা ডাকে না)
+    show: function (o) { css(); TOPMODE = true; try { bubble(Object.assign({ force: true }, o || {})); } finally { TOPMODE = false; } } };
 })();

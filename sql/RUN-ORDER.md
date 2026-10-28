@@ -34,5 +34,17 @@ Supabase → SQL Editor → New query → ফাইলের পুরোটা 
 | ২৬ | `sql/SQL-23-BUBBLE-DEFAULT-ON.sql` | নামে ক্লিক ও নাম ছাড়া বাবল ডিফল্টে ON | ✅ চালানো হয়েছে |
 | ২৭ | `sql/SQL-24-BUBBLE-DEFAULT-TOP-BIG.sql` | বাবলের ডিফল্ট জায়গা ওপরে ও সাইজ বড় | ✅ চালানো হয়েছে |
 | ২৮ | `sql/SQL-25-CHAT-THEME.sql` | চ্যাট ও হোমের থিম, কাস্টম থিম, র‍্যান্ডম ঘোরা (সেটিং সার্ভারে) | ✅ চালানো হয়েছে |
+| ২৯ | `sql/SQL-26-RESTRICTION-ONLY-ON-SELECTED-MESSAGE.sql` | Restriction শুধু যে বার্তায় বসানো সেখানেই ⛔ | ✅ চালানো হয়েছে |
+| ৩০ | `sql/SQL-27-PUSH-SUBSCRIPTIONS.sql` | ওয়েব-পুশ গ্রাহক তালিকা (fa_push_subs + RPC) | ✅ চালানো হয়েছে |
+| ৩১ | `sql/SQL-28-PUSH-WEBHOOK-TRIGGER.sql` | নতুন মেসেজে send-push ডাকার ট্রিগার (জিপে সিক্রেট-টেমপ্লেট) | ✅ চালানো হয়েছে |
+| ৩২ | `sql/SQL-29-PUSH-HOOK-APIKEY.sql` | পুশ ট্রিগারে apikey হেডার (পুরোনো; SQL-31 বদলে দিয়েছে) | ✅ চালানো হয়েছে |
+| ৩৩ | `sql/SQL-30-PUSH-SAVE-REGEX-FIX.sql` | পুশ সেভ ফাংশনের regex ঠিক | ✅ চালানো হয়েছে |
+| ৩৪ | `sql/SQL-31-PUSH-HOOK-PUBLISHABLE-KEY.sql` | ট্রিগারে নতুন publishable key (জিপে সিক্রেট-টেমপ্লেট) | ✅ চালানো হয়েছে |
+| ৩৫ | `sql/SQL-32-RESTRICTION-MSG-FOREVER-USER-DEFAULTS.sql` | মেসেজ Restriction আজীবন-লুকানো লেখা, ইউজার Restriction, ডিফল্ট সময় সেটিং | ✅ চালানো হয়েছে |
+| ৩৬ | `sql/SQL-33-IP-BAN-AND-PERMANENT-BAN-WITHOUT-REPORTS.sql` | আইপি ব্যান + স্থায়ী ব্যান রিপোর্ট ছাড়া/সহ (p_with_reports), একই আইপির ইউজার দেখা | ✅ চালানো হয়েছে |
+| ৩৭ | `sql/SQL-34-SAME-DEVICE-DETECTION.sql` | একই ডিভাইস থেকে নতুন ইউজার-আইডিতে ফিরলে শনাক্ত করা | ✅ চালানো হয়েছে |
+| ৩৮ | `sql/SQL-35-RESTRICTION-END-SHOWS-MESSAGE-AGAIN.sql` | Restriction বন্ধ/তুলে নিলে মেসেজের লেখা আবার দেখা যাবে | ✅ চালানো হয়েছে |
+| ৩৯ | `sql/SQL-36-ADMIN-FORGIVE-MESSAGE-ANYTIME.sql` | অ্যাডমিন যেকোনো সময় "ভুল ছিল" বলে মেসেজের লেখা আবার দেখাতে পারবে | ✅ চালানো হয়েছে |
+| ৪০ | `sql/SQL-37-BUBBLE-REMEMBER-UNSEEN-CUSTOM-DAYS.sql` | না-দেখা বাবল কত দিন মনে রাখবে (অ্যাডমিনে কাস্টম দিন) | ✅ চালানো হয়েছে |
 
 - নতুন Supabase প্রজেক্ট ছাড়া SQL-1, 2, 3, 3b আবার চালাবেন না।

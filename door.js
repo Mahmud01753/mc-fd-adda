@@ -2,7 +2,7 @@
 // Friend Adda — চ্যাটে ঢোকার গেইট/দরজা (শব্দ সহ)। সাইটে: Enter চাপলে FADoor.play(নাম) নিজে চলে; অ্যাডমিন প্রিভিউতেও একই কোড (FADoor.play(নাম, {host, cfg, mode})).
 // নামের বাবল: অ্যাডমিন → 🎞 → 💭 চ্যাটের নাম (door.names, সার্ভারে আগের mc2_bg12_cfg.door-এর ভেতরেই — নতুন SQL লাগে না)।
 // সেটিং: Supabase mc2_bg12_cfg.door (অ্যাডমিন → 🎞 এনিমেশন ও দরজা)। সার্ভার না পেলে নিচের ডিফল্ট চলে।
-// part114: door.wan = "old" (ডিফল্ট, শব্দে শব্দে মিলায়) | "five" (৫ টুকরা: ১টা মাঝে, ৪টা চার কোণা থেকে উড়ে এসে জোড়া লাগে) — নিচে layoutFive()।
+// part124b: door.wan2 = "five" (এখন ডিফল্ট, ৫ টুকরা: ১টা মাঝে, ৪টা চার কোণা থেকে উড়ে এসে জোড়া লাগে) — নিচে layoutFive()।
 // সময় (d5): প্রথম ৩ বার = গেইট wait1 সেকেন্ড → দরজা খোলে → স্বাগতম লেখা ধীরে ছোট হয়ে মিলায় (msg1×.45 + shr সেকেন্ড) → তখনই পেছনে চ্যাট শুরু, chat সেকেন্ড চলে। ৪র্থ বার (nth) থেকে = wait3 সেকেন্ডে দরজা খোলে, লেখা+চ্যাট msg3 সেকেন্ডের ভেতর শেষ। (আগের নোট:) প্রথম/২য় বার = (গেইট wait1 সেকেন্ড + স্বাগতম msg1 সেকেন্ড); nth-তম বার থেকে = (wait3 + msg3)। ক্লিকে খোলা: প্রথম দিকে cd1 সেকেন্ড পর, nth-তম বার থেকে cd3 সেকেন্ড পর।
 // ডিজাইন (গেইট/দরজা), ভেতরের লাইভ-চ্যাট মক ও শব্দ: গেইট-প্রিভিউ ফাইল (friend-adda-gate-preview.html) থেকে নেওয়া। ছবি: images/gate/ (tl.jpg, tr.jpg, fac.jpg)।
 (function () {
@@ -27,19 +27,19 @@
   function cleanQA(a) { var r = [], i, p, q, t, k; if (!Array.isArray(a)) return NQ0.map(function (x) { return { q: x.q, a: x.a }; }); for (i = 0; i < a.length && r.length < 60; i++) { p = a[i]; if (typeof p === "string") { k = p.search(/[|｜]/); p = k < 0 ? null : { q: p.slice(0, k), a: p.slice(k + 1) }; } if (!p || typeof p !== "object") continue; q = String(p.q == null ? "" : p.q).replace(/\s+/g, " ").trim().slice(0, 80); t = String(p.a == null ? "" : p.a).replace(/\s+/g, " ").trim().slice(0, 80); if (q && t) r.push({ q: q, a: t }); } return r; }
   var DEF = {
     on: true, sound: true, csnd: true, txt: true, aud: "all", click: true,
-    design: 0, cspd: 1000, spd: 1, gap: 0, vol: 200, vk: 100, vc: 100, vt: 100, cvol: 800, dmode: 1, doff: "", lock: true, sgdrag: true, sl2: true, sla: -8, gfull: true, lt1: "এমসি আড্ডা", lt2: "মাস্টার্স আড্ডা", pl: true, plbg: "", plc: "", wtc: "", wan: "old", seal: true, bri: 100, fa: 0, fl: 4, wx: 0, wy: 0,
-    wait1: 8, msg1: 7, shr: 3, chat: 10, wait3: 3, msg3: 7, nth: 4, cd1: 0, cd3: 2, sbtn: true,
+    design: 0, cspd: 1000, lsp: 40, spd: 1, gap: 0, vol: 200, vk: 100, vc: 100, vt: 100, cvol: 800, dmode: 1, doff: "", lock: true, sgdrag: true, sl2: true, sla: -8, gfull: true, lt1: "এমসি আড্ডা", lt2: "মাস্টার্স আড্ডা", pl: true, plbg: "", plc: "", wtc: "", wan2: "five", dq1: "s", dq2: "c", dq3: "s", dq4: "b", dq5: "w", seal: true, bri: 100, fa: 0, fl: 4, wx: 0, wy: 0,
+    wait1: 8, msg1: 7, shr: 3, chat: 10, wait3: 3, msg3: 7, nth: 4, cd1: 0, cd3: 0, sbtn: true,
     lim: true, max: 3, win: 5, blk: "",
     college: "M.C COLLEGE MASTER’S", group: "FRIENDS ADDA", session: "২০২৩-২৪", sign: "স্বাগতম, {নাম}",
     welcome: "হে {নাম}, M.C COLLEGE MASTER’S FRIENDS আড্ডায় আপনাকে স্বাগতম।।",
     w1: "#6b3f1d", w2: "#5a3216",
     names: NM0.slice(), qa: cleanQA(null), wnd: true, wmin: 1, wmax: 2,
-    sgs: 100, sgb: 800, sgh: 30, sgw: 84, sgy: 0
+    sgs: 100, sgb: 800, sgh: 30, sgw: 84, sgy: 0, dsl: {}
   };
-  var LIM = { wait1: [1, 120], msg1: [1, 60], wait3: [1, 120], msg3: [1, 60], nth: [1, 50], shr: [0, 30], chat: [1, 60], cd1: [0, 60], cd3: [0, 60], cspd: [150, 3000], spd: [0, 3], gap: [0, 3000], vol: [50, 500], vk: [0, 300], vc: [0, 300], vt: [0, 300], cvol: [50, 800], dmode: [0, 2], sla: [-30, 30], max: [1, 20], win: [1, 60], design: [0, 99], bri: [30, 130], fa: [0, 16], fl: [1, 15], wx: [-12, 12], wy: [-12, 12], wmin: [.5, 6], wmax: [.5, 6], sgs: [40, 220], sgb: [400, 900], sgh: [15, 31], sgw: [60, 96], sgy: [-8, 8] };
+  var LIM = { wait1: [1, 120], msg1: [1, 60], wait3: [1, 120], msg3: [1, 60], nth: [1, 50], shr: [0, 30], chat: [1, 60], cd1: [0, 60], cd3: [0, 60], cspd: [150, 3000], lsp: [10, 300], spd: [0, 3], gap: [0, 3000], vol: [50, 500], vk: [0, 300], vc: [0, 300], vt: [0, 300], cvol: [50, 800], dmode: [0, 2], sla: [-30, 30], max: [1, 20], win: [1, 60], design: [0, 99], bri: [30, 130], fa: [0, 16], fl: [1, 15], wx: [-12, 12], wy: [-12, 12], wmin: [.5, 6], wmax: [.5, 6], sgs: [40, 220], sgb: [400, 900], sgh: [15, 31], sgw: [60, 96], sgy: [-8, 8] };
   var MG = null, CF = {}, k, css, R = null, D = null, AC = null, tm = [], phase = 0, me = "", CFG = null, tt = null, T0 = 0, hostMode = false, savedOv = null;
   for (k in DEF) CF[k] = DEF[k];
-  function clean(c) { var q, v; c.names = cleanNames(c.names); c.qa = cleanQA(c.qa); for (q in LIM) { v = +c[q]; if (isNaN(v)) v = DEF[q]; c[q] = Math.max(LIM[q][0], Math.min(LIM[q][1], v)); } if (c.wmax < c.wmin) c.wmax = c.wmin; if (c.wan !== "five") c.wan = "old"; return c; }
+  function clean(c) { c.dsl = cleanDsl(c.dsl); var q, v; c.names = cleanNames(c.names); c.qa = cleanQA(c.qa); for (q in LIM) { v = +c[q]; if (isNaN(v)) v = DEF[q]; c[q] = Math.max(LIM[q][0], Math.min(LIM[q][1], v)); } if (c.wmax < c.wmin) c.wmax = c.wmin; if (c.wan2 !== "old") c.wan2 = "five"; ["dq1", "dq2", "dq3", "dq4", "dq5"].forEach(function (k) { if (!/^[scbnklghw1-5]$/.test(c[k])) c[k] = DEF[k]; }); return c; }
   function merge(o) { if (!o || typeof o !== "object") return; if (o.vol === 333 && !o.hasOwnProperty("vk")) { o = JSON.parse(JSON.stringify(o)); o.vol = DEF.vol; } /* part111: পুরোনো ডিফল্ট ৩৩৩% → নতুন ২০০% (৩ শব্দের আলাদা জোর সেভ না হওয়া পর্যন্ত) */ if (o.vol === 500) { o = JSON.parse(JSON.stringify(o)); o.vol = DEF.vol; } /* d18: পুরোনো ফুল-ডিফল্ট ৫০০% সেভ থাকলে নতুন ডিফল্ট (১/৩ কম) */ if (o.vol === 250 && !o.hasOwnProperty("cvol")) { o = JSON.parse(JSON.stringify(o)); o.vol = DEF.vol; } /* d15: পুরোনো ডিফল্ট ২৫০% সেভ করা থাকলে নতুন ফুল ডিফল্টে উঠবে */ for (var q in DEF) if (o.hasOwnProperty(q) && typeof o[q] === typeof DEF[q] && ((q !== "names" && q !== "qa") || Array.isArray(o[q]))) CF[q] = o[q]; clean(CF); }
   try { merge(JSON.parse(localStorage.getItem("fa_door") || "null")); } catch (e) {}
   try {
@@ -168,7 +168,7 @@ var DS=[
   function fillTx() {
     $("#s1").textContent = CFG.college; $("#s2").textContent = CFG.group; $("#s3").textContent = "সেশন · " + CFG.session; $("#s4").textContent = String(CFG.sign).replace(/\{নাম\}/g, me);
     $("#bd2").textContent = me; $("#bd3").textContent = CFG.group + " · " + CFG.college;
-    var rw = $("#rw"); rw.innerHTML = ""; R.classList.toggle("nosl", !CFG.seal); R.classList.toggle("wfive", CFG.wan === "five" && !!CFG.txt); // part114: নতুন স্বাগতম-এনিমেশন (৫ টুকরা)
+    var rw = $("#rw"); rw.innerHTML = ""; R.classList.toggle("nosl", !CFG.seal); R.classList.toggle("wfive", CFG.wan2 !== "old" && !!CFG.txt); // part114: নতুন স্বাগতম-এনিমেশন (৫ টুকরা)
     if (CFG.plbg) rw.style.setProperty("--plbg", CFG.plbg); else rw.style.removeProperty("--plbg");
     if (CFG.plc) rw.style.setProperty("--plc", CFG.plc); else rw.style.removeProperty("--plc");
     rw.style.color = CFG.wtc || "";
@@ -204,11 +204,7 @@ function lvBeep(i,t,d,f0,f1,g,ty){g=Math.min(.95,g*((+(CFG&&CFG.cvol)||600)/100)
 function lvSnd(i,e){
   if(NBPV||!CFG.csnd||!sndOk()||!AC||AC.state!=="running"||!R||!document.body.contains(R)||document.hidden)return;
   try{var t=AC.currentTime+.01,k=e[2]||"",x=rep(e[1]);
-    if(k.indexOf("s")>=0){lvBeep(i,t,.18,520,780,.06);lvBeep(i,t+.1,.2,780,1040,.05)}
-    else if(k.indexOf("r")>=0){lvBeep(i,t,.06,1500,1900,.03,"triangle")}
-    else if(e[0]==="{me}"){lvBeep(i,t,.08,1250,950,.05,"triangle")}
-    else if(x.indexOf("@"+me)>=0){lvBeep(i,t,.12,1320,1320,.06);lvBeep(i,t+.11,.16,1760,1760,.055)}
-    else{var f=700+Math.random()*160;lvBeep(i,t,.1,f,f*.66,.06)}
+    lvPlay(k.indexOf("s")>=0?"s":k.indexOf("r")>=0?"r":e[0]==="{me}"?"m":x.indexOf("@"+me)>=0?"t":"n",i,t);
   }catch(z){}
 }
 var XCSS="#fgate .bb{position:relative}#fgate .rw.b>div{padding-top:calc(var(--f)*2.8)}#fgate .nm{align-self:flex-start;display:inline-block;opacity:1;color:#fff;background:var(--nc,#c2185b);font-size:calc(var(--f)*3);font-weight:900;line-height:1.25;padding:calc(var(--f)*.4) calc(var(--f)*1.7) calc(var(--f)*.5);margin:0 0 calc(var(--f)*.6) calc(var(--f)*.2);border-radius:calc(var(--f)*1.8);text-shadow:0 1px 2px rgba(0,0,0,.55);box-shadow:0 1px 3px rgba(0,0,0,.45)}#fgate .bb .sl{position:absolute;top:calc(var(--f)*-2.7);right:calc(var(--f)*1.2);transform:rotate(-9deg);font-style:normal;font-size:calc(var(--f)*2.1);font-weight:900;line-height:1;padding:calc(var(--f)*.55) calc(var(--f)*1.5);border-radius:99px;background:#fffbe9;color:var(--nc,#c2185b);border:calc(var(--f)*.45) double var(--nc,#c2185b);box-shadow:0 1px 3px rgba(0,0,0,.45);white-space:nowrap;z-index:3}#fgate .bb .sl.o{transform:rotate(calc(var(--sa,-8deg)*.5))}#fgate .rm h3 span.pl{background:var(--plbg,var(--sgbg));color:var(--plc,var(--sga));border:.06em solid var(--sgbd);border-radius:.45em;padding:.02em .5em .08em;margin:0 .22em;font-weight:900;box-shadow:0 .08em .3em rgba(0,0,0,.4)}#fgate .rm h3 span.pn{margin-left:-.1em}#fgate.nosl .bb .sl{display:none}";
@@ -463,7 +459,7 @@ function lvBuild(){
   lvFill();
 }
 // part56: লাগাতার ওপরে-স্লাইডিং চ্যাট — দুই উইন্ডো একসাথে; শুরুতেই পুরো পেজ মেসেজে ভর্তি, তারপর নিচ থেকে নতুন মেসেজ উঠে ওপর দিয়ে বেরিয়ে যায়, থামে না।
-var LRAF=0,LPT=0;
+var LRAF=0,LPT=0;/* d38: ফেইক চ্যাট ওঠার গতি এখন অ্যাডমিন সেটিং CFG.lsp (%; ডিফল্ট ৪০ = আগের হার্ডকোড LSLOW .4) */
 function lvNextW(i,inst){
   var w=LW[i],e,k,n;if(!w||!w.m||w.busy)return 0;
   if(!LQ[i].length&&!lvTurn(i))return -1;
@@ -483,7 +479,7 @@ function lvTick(ts){
   var dt=LPT?Math.min(.1,(ts-LPT)/1000):0,i,w,vh,c,nx,base=+CFG.gap>0?+CFG.gap:(SPD[Math.round(CFG.spd)]||1000);LPT=ts;
   for(i=0;i<2;i++){w=LW[i];if(!w||!w.tk||!w.vp)continue;vh=w.vp.clientHeight;if(!vh)continue;
     if(!w.pf){w.pf=1;lvFill()}
-    if(!w.dry||w.m.offsetTop+w.m.offsetHeight+w.y>vh+2)w.y-=(LF?Math.min(vh,LF*110):vh)*90/base*dt; // গতি = উইন্ডোর উচ্চতার অনুপাতে (cspd/গতি-অপশন মেনে)
+    if(!w.dry||w.m.offsetTop+w.m.offsetHeight+w.y>vh+2)w.y-=(LF?Math.min(vh,LF*110):vh)*90/base*dt*((+CFG.lsp||40)/100); // গতি = উইন্ডোর উচ্চতার অনুপাতে (cspd/গতি-অপশন মেনে)
     while((c=w.m.firstChild)&&(nx=c.nextSibling)&&c.offsetTop+c.offsetHeight+w.y<-6){w.y+=nx.offsetTop;w.m.removeChild(c)}
     if(w.y>0)w.y=0;
     w.m.style.transform="translateY("+w.y.toFixed(2)+"px)";
@@ -497,25 +493,52 @@ function lvStart(){lvStop();LT0=Date.now();LDUR=Math.max(1.4,ND)*1000;LDONE=fals
   // ===== শব্দ =====
 function A(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state!=="running")AC.resume()}catch(e){AC=null}return AC}
 // শব্দ না আসার কারণ: ব্রাউজার ইউজার-ট্যাপ ছাড়া শব্দ চালু করতে দেয় না, আর আগে প্রতিবার শব্দের যন্ত্র নতুন বানিয়ে বন্ধ করা হতো। এখন পেজের প্রথম যেকোনো ট্যাপ/ক্লিকেই শব্দের যন্ত্র চালু হয়ে থাকে, আর বন্ধ হয় না।
-function prime(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state!=="running")AC.resume()}catch(e){}}
+function prime(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state!=="running")AC.resume();for(var xu in XR)xdec(xu)}catch(e){}}
 ["pointerdown","touchstart","touchend","mousedown","keydown","click"].forEach(function(ev){try{document.addEventListener(ev,prime,{capture:true,passive:true})}catch(e){}});
 function sndUser(){try{return localStorage.getItem("fa_gate_snd")!=="0"}catch(e){return true}}
 function sndOk(){return !!CFG&&!!CFG.sound&&(hostMode||sndUser())}
 function sndVol(){return Math.max(.5,Math.min(5,(+(CFG&&CFG.vol)||250)/100))}
-var CB=null;function newMG(){try{if(MG)MG.disconnect()}catch(e){}try{if(CB)CB.disconnect()}catch(e){}MG=null;CB=null;if(AC){try{var g=AC.createGain(),c=AC.createDynamicsCompressor?AC.createDynamicsCompressor():null;g.gain.value=sndVol();if(c){c.threshold.value=-14;c.knee.value=12;c.ratio.value=8;c.attack.value=.003;c.release.value=.2;var lm=AC.createDynamicsCompressor();lm.threshold.value=-3;lm.knee.value=0;lm.ratio.value=20;lm.attack.value=.001;lm.release.value=.08;g.connect(c);c.connect(lm);lm.connect(AC.destination)}else g.connect(AC.destination);MG=g}catch(e){MG=null}try{var cg=AC.createGain(),cc=AC.createDynamicsCompressor?AC.createDynamicsCompressor():null,cm=AC.createGain(),cl=AC.createDynamicsCompressor?AC.createDynamicsCompressor():null;cg.gain.value=1;cm.gain.value=1.7;if(cc&&cl){cc.threshold.value=-8;cc.knee.value=6;cc.ratio.value=10;cc.attack.value=.002;cc.release.value=.15;cl.threshold.value=-1.5;cl.knee.value=0;cl.ratio.value=20;cl.attack.value=.001;cl.release.value=.08;cg.connect(cc);cc.connect(cm);cm.connect(cl);cl.connect(AC.destination)}else{cg.connect(AC.destination)}CB=cg}catch(e){CB=null}}} // শব্দের জোর = অ্যাডমিনের vol% + কম্প্রেসর (ফেটে না যাওয়ার জন্য)
+var CLKD=0;var CB=null;function newMG(){try{if(MG)MG.disconnect()}catch(e){}try{if(CB)CB.disconnect()}catch(e){}MG=null;CB=null;if(AC){try{var g=AC.createGain(),c=AC.createDynamicsCompressor?AC.createDynamicsCompressor():null;g.gain.value=sndVol();if(c){c.threshold.value=-14;c.knee.value=12;c.ratio.value=8;c.attack.value=.003;c.release.value=.2;var lm=AC.createDynamicsCompressor();lm.threshold.value=-3;lm.knee.value=0;lm.ratio.value=20;lm.attack.value=.001;lm.release.value=.08;g.connect(c);c.connect(lm);lm.connect(AC.destination)}else g.connect(AC.destination);MG=g}catch(e){MG=null}try{var cg=AC.createGain(),cc=AC.createDynamicsCompressor?AC.createDynamicsCompressor():null,cm=AC.createGain(),cl=AC.createDynamicsCompressor?AC.createDynamicsCompressor():null;cg.gain.value=1;cm.gain.value=1.7;if(cc&&cl){cc.threshold.value=-8;cc.knee.value=6;cc.ratio.value=10;cc.attack.value=.002;cc.release.value=.15;cl.threshold.value=-1.5;cl.knee.value=0;cl.ratio.value=20;cl.attack.value=.001;cl.release.value=.08;cg.connect(cc);cc.connect(cm);cm.connect(cl);cl.connect(AC.destination)}else{cg.connect(AC.destination)}CB=cg}catch(e){CB=null}}} // শব্দের জোর = অ্যাডমিনের vol% + কম্প্রেসর (ফেটে না যাওয়ার জন্য)
+// ---- দরজার সব শব্দ: প্রতিটার অন/অফ + নিজের শব্দ (লাইব্রেরি থেকে) + জোর (CFG.dsl, অ্যাডমিন থেকে) ----
+// ফাঁকা থাকলে আগের কৃত্রিম শব্দই বাজে। অন=বন্ধ হলে ওই শব্দ একদম বাজে না।
+var XR={},XB={},XP={};
+function xs(k){var d=CFG&&CFG.dsl&&CFG.dsl[k];return d&&typeof d==="object"?d:null}
+function xdec(u){if(!AC||!XR[u]||XB[u]!==undefined)return Promise.resolve();XB[u]=0;return new Promise(function(res){try{var p=AC.decodeAudioData(XR[u].slice(0),function(x){XB[u]=x;res()},function(){XB[u]=-1;res()});if(p&&p.catch)p.catch(function(){XB[u]=-1;res()})}catch(e){XB[u]=-1;res()}})}
+function xfetch(u){if(XP[u])return XP[u];XP[u]=fetch(u).then(function(r){if(!r.ok)throw 0;return r.arrayBuffer()}).then(function(b){XR[u]=b;return xdec(u)}).catch(function(){XB[u]=-1});return XP[u]}
+function xpre(c){var q=[],k,d;if(!c||!c.dsl)return Promise.resolve();for(k in c.dsl){d=c.dsl[k];if(d&&d.on!==false&&d.u)q.push(xfetch(d.u).then((function(u){return function(){return xdec(u)}})(d.u)))}return Promise.all(q)}
+function xplay(k,t,bus){var d=xs(k);if(!d)return false;if(d.on===false)return true;if(!d.u||!AC)return false;
+  var b=XB[d.u],vv=Math.max(0,Math.min(3,(isNaN(+d.v)?100:+d.v)/100));
+  if(b&&b!==-1&&b!==0){try{var s=AC.createBufferSource(),g=AC.createGain(),off=Math.max(0,Math.min(+d.s||0,b.duration-.05)),du=(+d.e>+d.s)?(+d.e-off):Math.min(4,b.duration-off);du=Math.max(.05,Math.min(du,b.duration-off));s.buffer=b;g.gain.value=vv;s.connect(g);g.connect(bus||MG||AC.destination);s.start(Math.max(t||0,AC.currentTime),off,du);return true}catch(e){return false}}
+  if(b===undefined){xfetch(d.u);return false} // এবার কৃত্রিম, পরেরবার নিজের শব্দ
+  if(b===-1){try{var a=new Audio(d.u),o2=Math.max(0,+d.s||0),ms=Math.max(0,(t||AC.currentTime)-AC.currentTime)*1000;a.volume=Math.min(1,vv);setTimeout(function(){try{a.currentTime=o2}catch(e){}var p=a.play();if(p&&p.catch)p.catch(function(){});setTimeout(function(){try{a.pause()}catch(e){}},Math.max(100,((+d.e>+d.s)?(+d.e-o2):4)*1000))},ms);return true}catch(e){return false}}
+  return false}
+var DSK=["knock","click","swoosh","creak","bang","tung","thas","lvn","lvm","lvt","lvr","lvs"];
+function cleanDsl(o){var r={},i,k,d,x;if(!o||typeof o!=="object")return r;for(i=0;i<DSK.length;i++){k=DSK[i];d=o[k];if(!d||typeof d!=="object")continue;x={on:d.on!==false,id:String(d.id||"").slice(0,12),v:Math.max(0,Math.min(300,isNaN(+d.v)?100:+d.v))};if(typeof d.u==="string"&&d.u.length<400&&(/^https:\/\/[^\s"'\\()]+$/.test(d.u)||(/^[\w\-.\/]+\.(mp3|ogg|wav|m4a|aac|webm)$/i.test(d.u)&&d.u.indexOf("..")<0&&d.u[0]!=="/"))){x.u=d.u;x.s=Math.max(0,Math.min(3600,+d.s||0));x.e=Math.max(0,Math.min(7200,+d.e||0))}r[k]=x}return r}
+function lvPlay(kd,i,t){var B=CB||MG||AC.destination;if(xplay("lv"+kd,t,B))return;
+  if(kd==="s"){lvBeep(i,t,.18,520,780,.06);lvBeep(i,t+.1,.2,780,1040,.05)}
+  else if(kd==="r"){lvBeep(i,t,.06,1500,1900,.03,"triangle")}
+  else if(kd==="m"){lvBeep(i,t,.08,1250,950,.05,"triangle")}
+  else if(kd==="t"){lvBeep(i,t,.12,1320,1320,.06);lvBeep(i,t+.11,.16,1760,1760,.055)}
+  else{var f=700+Math.random()*160;lvBeep(i,t,.1,f,f*.66,.06)}}
+function slotTest(k,t){if(k==="tung"){if(!xplay("tung",t)){thas(t,.5);tung(t+.07,880,.5);tung(t+.2,880*1.335,.5)}}else if(k==="thas"){if(!xplay("thas",t)){thas(t,.5);thas(t+.11,.5)}}else lvPlay(k.slice(2),0,t)}
 function nz(t,d,f,g,ty){var a=AC,n=a.sampleRate*d|0,b=a.createBuffer(1,n,a.sampleRate),x=b.getChannelData(0),i;for(i=0;i<n;i++)x[i]=Math.random()*2-1;var s=a.createBufferSource(),fl=a.createBiquadFilter(),ga=a.createGain();s.buffer=b;fl.type=ty||"lowpass";fl.frequency.value=f;ga.gain.setValueAtTime(g,t);ga.gain.exponentialRampToValueAtTime(.001,t+d);s.connect(fl);fl.connect(ga);ga.connect((MG||a.destination));s.start(t)}
 function tn(t,d,f0,f1,g,ty){var a=AC,o=a.createOscillator(),ga=a.createGain();o.type=ty||"sine";o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+d);ga.gain.setValueAtTime(g,t);ga.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(ga);ga.connect((MG||a.destination));o.start(t);o.stop(t+d+.05)}
-function creak(t,d){var fc=vf("vc");if(fc<=0)return;var a=AC,o=a.createOscillator(),l=a.createOscillator(),lg=a.createGain(),f=a.createBiquadFilter(),ga=a.createGain();o.type="sawtooth";o.frequency.setValueAtTime(70,t);o.frequency.linearRampToValueAtTime(150,t+d*.5);o.frequency.linearRampToValueAtTime(95,t+d);l.frequency.value=23;lg.gain.value=22;l.connect(lg);lg.connect(o.frequency);f.type="bandpass";f.Q.value=6;f.frequency.setValueAtTime(500,t);f.frequency.linearRampToValueAtTime(1300,t+d*.6);f.frequency.linearRampToValueAtTime(700,t+d);ga.gain.setValueAtTime(0,t);ga.gain.linearRampToValueAtTime(.5*fc,t+.25);ga.gain.setValueAtTime(.5*fc,t+d-.4);ga.gain.linearRampToValueAtTime(0,t+d);o.connect(f);f.connect(ga);ga.connect((MG||a.destination));o.start(t);l.start(t);o.stop(t+d);l.stop(t+d)}
+function creak(t,d){if(xplay("creak",t))return;var fc=vf("vc");if(fc<=0)return;var a=AC,o=a.createOscillator(),l=a.createOscillator(),lg=a.createGain(),f=a.createBiquadFilter(),ga=a.createGain();o.type="sawtooth";o.frequency.setValueAtTime(70,t);o.frequency.linearRampToValueAtTime(150,t+d*.5);o.frequency.linearRampToValueAtTime(95,t+d);l.frequency.value=23;lg.gain.value=22;l.connect(lg);lg.connect(o.frequency);f.type="bandpass";f.Q.value=6;f.frequency.setValueAtTime(500,t);f.frequency.linearRampToValueAtTime(1300,t+d*.6);f.frequency.linearRampToValueAtTime(700,t+d);ga.gain.setValueAtTime(0,t);ga.gain.linearRampToValueAtTime(.5*fc,t+.25);ga.gain.setValueAtTime(.5*fc,t+d-.4);ga.gain.linearRampToValueAtTime(0,t+d);o.connect(f);f.connect(ga);ga.connect((MG||a.destination));o.start(t);l.start(t);o.stop(t+d);l.stop(t+d)}
 function pnd(p){var a=AC;if(a.createStereoPanner){var s=a.createStereoPanner();s.pan.value=p;s.connect(MG||a.destination);return s}return MG||a.destination}
 function thas(t,p){var a=AC,d=pnd(p),n=a.sampleRate*.09|0,b=a.createBuffer(1,n,a.sampleRate),x=b.getChannelData(0),i;for(i=0;i<n;i++)x[i]=(Math.random()*2-1)*(1-i/n);
   var s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain(),o=a.createOscillator(),og=a.createGain();s.buffer=b;f.type="bandpass";f.frequency.value=1800;f.Q.value=.8;g.gain.setValueAtTime(.9,t);g.gain.exponentialRampToValueAtTime(.001,t+.09);s.connect(f);f.connect(g);g.connect(d);s.start(t);
   o.frequency.setValueAtTime(220,t);o.frequency.exponentialRampToValueAtTime(70,t+.12);og.gain.setValueAtTime(.7,t);og.gain.exponentialRampToValueAtTime(.001,t+.14);o.connect(og);og.connect(d);o.start(t);o.stop(t+.16)}
 function tung(t,f,p){var a=AC,d=pnd(p);[1,2.01,3.02].forEach(function(m,k){var o=a.createOscillator(),g=a.createGain();o.frequency.value=f*m;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime([.3,.12,.05][k],t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+.55-k*.12);o.connect(g);g.connect(d);o.start(t);o.stop(t+.6)})}
-function fragSnd(side,mine){if(!CFG.csnd||!sndOk()||!AC||AC.state!=="running"||!R||!document.body.contains(R)||document.hidden)return;try{var t=AC.currentTime+.02,p=side==="l"?-.5:.5,v=[784,880,988,1175][Math.floor(Math.random()*4)];if(mine){thas(t,p);thas(t+.11,p)}else{thas(t,p);tung(t+.07,v,p);tung(t+.2,v*1.335,p)}}catch(e){}}
-function swoosh(t,d){var f=vf("vc");if(f<=0)return;nz(t,d,1600,.5*f,"bandpass");tn(t,d,200,900,.15*f,"sine")}
+function fragSnd(side,mine){if(!CFG.csnd||!sndOk()||!AC||AC.state!=="running"||!R||!document.body.contains(R)||document.hidden)return;try{var t=AC.currentTime+.02,p=side==="l"?-.5:.5,v=[784,880,988,1175][Math.floor(Math.random()*4)];if(mine){if(!xplay("thas",t)){thas(t,p);thas(t+.11,p)}}else{if(!xplay("tung",t)){thas(t,p);tung(t+.07,v,p);tung(t+.2,v*1.335,p)}}}catch(e){}}
+function swoosh(t,d,k){if(xplay(k==="vk"?"click":"swoosh",t))return;var f=vf(k||"vc");if(f<=0)return;nz(t,d,1600,.5*f,"bandpass");tn(t,d,200,900,.15*f,"sine")}
 function vf(k){var v=CFG&&+CFG[k];return isNaN(v)||v===undefined?1:Math.max(0,v)/100} // part111: নক(vk)/ক্যাঁচ-সুশ(vc)/ঠাস(vt) আলাদা জোর
-function knock(t){var f=vf("vk");if(f<=0)return;tn(t,.14,170,70,.9*f);nz(t,.08,500,.5*f)}
-function bang(t){var f=vf("vt");if(f<=0)return;tn(t,.7,110,28,1.4*f);nz(t,.6,260,1.2*f);tn(t+.18,.35,90,40,.6*f)}
+function wd(t,v,z,f){tn(t,.16,170*z,62*z,.9*v*f);[[95,.30],[190,.20],[330,.13],[520,.08]].forEach(function(m){tn(t,m[1],m[0]*z*(.97+Math.random()*.06),m[0]*z*.93,.34*v*f)});nz(t,.05,1500*z,.55*v*f,"bandpass");nz(t,.12,420,.5*v*f,"lowpass")} // d40: কাঠের এক ঘা (ডেমোর wood())
+function clk(t){swoosh(t,.45,"vk")} // part124b: দরজায় ক্লিক = ছোট "সুস" (জোর = vk স্লাইডার; ০ হলে চুপ); আগের ফাঁপা-কাঠের ঠক (wd) এখন আর ক্লিকে বাজে না
+var SQD={s:.6,w:2.2,c:2.5,b:.5,k:.45,l:.45,g:.6,h:.25,"1":.3,"2":.3,"3":.35,"4":.2,"5":.3};
+function seqOne(k,x){if(k==="s")swoosh(x,.6);else if(k==="w")swoosh(x,2.2);else if(k==="c")creak(x,2.5);else if(k==="b")bang(x);else if(k==="k")knock(x);else if(k==="l")clk(x);else if(k==="g"){if(!xplay("tung",x)){thas(x,0);tung(x+.07,880,0);tung(x+.2,880*1.335,0)}}else if(k==="h"){if(!xplay("thas",x)){thas(x,0);thas(x+.11,0)}}else if(/^[1-5]$/.test(k))lvPlay(["","n","m","t","r","s"][+k],0,x);else return false;return true}
+function seqSnd(t){var q=[CFG.dq1,CFG.dq2,CFG.dq3,CFG.dq4,CFG.dq5],x=t,i,k;for(i=0;i<q.length;i++){k=q[i];if(!seqOne(k,x))continue;x+=SQD[k]}return x-t} // part124b/part149: দরজা খোলার শব্দের ক্রম (অ্যাডমিনে বদলানো যায়): s = সুস, c = ক্যাঁচ, b = ঠাস, n = কিছু না; part149-এ বাকি সব শব্দও যোগ (k ঠকঠক, l ক্লিকের সুস, g/h চ্যাট বাবল, 1–5 লাইভ চ্যাট); ডিফল্ট সুস → ক্যাঁচ → সুস → ঠাস
+function knock(t){if(xplay("knock",t))return;var f=vf("vk");if(f<=0)return;tn(t,.14,170,70,.9*f);nz(t,.08,500,.5*f)}
+function bang(t){if(xplay("bang",t))return;var f=vf("vt");if(f<=0)return;tn(t,.7,110,28,1.4*f);nz(t,.6,260,1.2*f);tn(t+.18,.35,90,40,.6*f)}
 
   // ===== নিয়ম (ব্লক / নিজে বন্ধ / সীমা) =====
   function ls(k, d) { try { var v = localStorage.getItem(k); if (v != null) return v; } catch (e) {} return d; }
@@ -595,7 +618,7 @@ function bang(t){var f=vf("vt");if(f<=0)return;tn(t,.7,110,28,1.4*f);nz(t,.6,260
     if (phase !== 1) return; phase = 2;
     var sl = !!DS[CFG.design].s, T = Math.max(1, tt.msg), th = tt.third, showAt = th ? 200 : 500;
     D.style.setProperty("--T", T + "s"); D.style.setProperty("--S", (th ? 0 : CFG.shr) + "s"); R.style.setProperty("--T", T + "s"); R.style.setProperty("--S", (th ? 0 : CFG.shr) + "s"); D.classList.remove("cl"); posWl();
-    if (sndOk() && A()) { if (!MG) newMG(); var snd = function () { if (phase < 2 || !AC) return; var t = AC.currentTime + .05; if (sl) { swoosh(t, 2.2); bang(t + 2.0); } else { creak(t, 2.5); bang(t + 2.3); } }; if (AC.state === "running") snd(); else AC.resume().then(snd, function () {}); }
+    if (sndOk() && A()) { if (!MG) newMG(); var auto = !CLKD, snd = function () { if (phase < 2 || !AC) return; var t0 = AC.currentTime, t = t0 + .05 + .4; CLKD = 0; if (auto) clk(t0 + .02); /* part124b: নিজে-নিজে খোলায়ও ক্লিকের মতো আগে "সুস" (clk); ০.৪ সে. পরে সেটিং-অনুযায়ী ক্রম (ডিফল্ট সুস → ক্যাঁচ → সুস → ঠাস) */ seqSnd(t); }; if (AC.state === "running") snd(); else AC.resume().then(snd, function () {}); }
     setCls(1, 1, 0); lvBuild(); tm.push(setTimeout(function () { D.classList.add("xp"); }, sl ? 1600 : 200));
     if (CFG.txt) {
       var te = layoutWords(), chatAt = showAt + te * 1000; R.style.setProperty("--bdd", (th ? Math.min(te + WBK_EXTRA, T * .6) : te + WBK_EXTRA) + "s"); /* part62g: "স্বাগতম রাফি" সাইনবোর্ড লেখা+ব্যাকগ্রাউন্ড মিলানোর পরে আসে */ // লেখা পুরো মিলিয়ে গেলে চ্যাটের (হোল্ড) সময় শুরু — আগের মতোই
@@ -652,17 +675,17 @@ function bang(t){var f=vf("vt");if(f<=0)return;tn(t,.7,110,28,1.4*f);nz(t,.6,260
     var real = !o.host; curAnon = real && !!o.anon;
     if (real && why(c, name, o)) return false;
     teardown(); styles(); NBPV = false; LDONE = false; LSN = 0;
-    CFG = c; me = name; hostMode = !!o.host; if (real) c.design = pickDesign(c);
+    CFG = c; me = name; hostMode = !!o.host; try { xpre(c); } catch (e) {} if (real) c.design = pickDesign(c);
     var n = real ? bump() : (o.mode === "third" ? c.nth : 1); tt = timing(c, n);
     if (real && c.lim) { var h = hist(c); h.push(Date.now()); lset("fa_gate_h", JSON.stringify(h)); }
     R = document.createElement("div"); R.id = "fgate"; if (o.host) R.className = "host";
     R.innerHTML = HTML; R.style.setProperty("--fac", "url('" + FACU + "')"); layers();
     (o.host || document.body).appendChild(R); if (real) lock();
     D = $("#door"); fillTx(); applyD(); placeSign(); sgDrag(); setCls(0, 0, 0); phase = 1; T0 = Date.now();
-    if (c.click) { // ক্লিকে খোলা: অ্যাডমিনে 👆 চালু করলে (ডিফল্ট বন্ধ)
-      var cl = function () { if (D && phase === 1) D.classList.add("cl"); };
-      if (tt.cd <= 0) cl(); else tm.push(setTimeout(cl, tt.cd * 1000));
-      D.onclick = function () { if (phase === 1 && Date.now() - T0 >= tt.cd * 1000 - 20) openDoor(); };
+    { // d36: দরজায় ক্লিক করলেই সাথে সাথে খোলে (অপেক্ষা-সেকেন্ড বা 👆 সেটিং আর আটকায় না) ও খোলার শব্দ বাজে; ক্লিকই ইউজারের ইশারা, তাই এখানেই অডিও চালু (resume) হয়
+      var cl = function () { if (D && phase === 1) D.classList.add("cl"); }; /* d39: ক্লিক ০ সেকেন্ড থেকে গেইট খোলা থাকা পুরো সময়ে যেকোনো মুহূর্তে কাজ করে; cd শুধু "👆 ক্লিক করুন" ইশারা কখন আসবে */
+      if (c.click) { if (tt.cd <= 0) cl(); else tm.push(setTimeout(cl, tt.cd * 1000)); } // "👆 ক্লিক করুন" ইশারা আগের মতোই সেটিং-অনুযায়ী
+      D.onclick = function () { if (phase === 1) { try { A(); } catch (e) {} if (sndOk() && AC) { try { if (!MG) newMG(); var ct = AC.currentTime + .01; if (AC.state === "running") clk(ct); } catch (e) {} } CLKD = 1; openDoor(); } }; // d37: ক্লিকে "ক্লিক" শব্দ, তারপর দরজা খোলার সময়ে খোলার শব্দ (একটু পরে শুরু, যাতে দুটো আলাদা শোনা যায়)
     }
     KN = 0; if (c.sound && (hostMode || sndUser()) && A()) { newMG(); knockLoop(); }
     if (real && c.sbtn) addSndBtn();
@@ -689,9 +712,9 @@ function bang(t){var f=vf("vt");if(f<=0)return;tn(t,.7,110,28,1.4*f);nz(t,.6,260
   function testSnd(kind, oc) {
     var c = cfgOf(oc), pc = CFG, ph = hostMode; CFG = c; hostMode = true;
     try { if (!A()) { CFG = pc; hostMode = ph; return false; } newMG(); } catch (e) { CFG = pc; hostMode = ph; return false; }
-    var go = function () { var q = CFG, h = hostMode; CFG = c; try { var t = AC.currentTime + .05; if (kind === "knock") { knock(t); knock(t + .4); knock(t + .8); } else if (kind === "creak") creak(t, 2.5); else if (kind === "swoosh") swoosh(t, 2.2); else if (kind === "bang") bang(t); else { creak(t, 2.5); bang(t + 2.3); } } catch (e) {} CFG = q; hostMode = h; };
+    var go = function () { var q = CFG, h = hostMode; CFG = c; try { var t = AC.currentTime + .05; if (kind === "knock") { knock(t); knock(t + .4); knock(t + .8); } else if (kind === "creak") creak(t, 2.5); else if (kind === "swoosh") swoosh(t, 2.2); else if (kind === "bang") bang(t); else if (kind === "click") clk(t); else if (/^(tung|thas|lv[nmtrs])$/.test(kind)) slotTest(kind, t); else seqSnd(t); } catch (e) {} CFG = q; hostMode = h; };
     CFG = pc; hostMode = ph;
-    if (AC.state === "running") go(); else AC.resume().then(go, function () {}); return true;
+    var run = function () { xpre(c).then(go, go); }; if (AC.state === "running") run(); else AC.resume().then(run, function () {}); return true;
   }
   function toggleSelf() { var off = !selfOff(); lset("fa_gate_off", off ? "1" : "0"); return !off; }
   window.addEventListener("pagehide", function () { if (!hostMode && phase) stopAll(); });

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>বাবল প্রিভিউ (শুধু পরীক্ষার জন্য)</title>
+<style>
+:root{--bg:#f4f7f5;--fg:#10261b;--card:#fff;--line:#cfd9d2;color-scheme:light}
+body.night{--bg:#0f1a14;--fg:#e8f1ea;--card:#17251d;--line:#2d4236;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 'Noto Sans Bengali','Hind Siliguri','Kalpurush','Siyam Rupali',system-ui,sans-serif}
+.w{max-width:380px;margin:0 auto;padding:12px 12px 40px}
+h1{font-size:17px;margin:4px 0 10px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+label{display:block;font-size:13px;font-weight:700;margin:8px 0 3px}
+input[type=text],select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:transparent;color:inherit}
+select option{color:#000}
+textarea{min-height:60px;resize:vertical}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg label{margin:0;flex:1;min-width:70px;text-align:center;border:1px solid var(--line);border-radius:10px;padding:7px 4px;cursor:pointer;font-weight:700}
+.seg input{display:none}
+.seg input:checked+span{color:#fff}
+.seg label:has(input:checked){background:#0a66ff;color:#fff;border-color:#0a66ff}
+.sw{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:700}
+.go{width:100%;margin-top:12px;padding:12px;border:0;border-radius:12px;background:#16a34a;color:#fff;font:800 16px inherit;cursor:pointer}
+small{opacity:.75;display:block;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="w">
+  <h1>💬 বাবল প্রিভিউ <small style="display:inline">(সাইটের কোনো ফাইল এটা ব্যবহার করে না; নেট/Supabase লাগে না)</small></h1>
+  <div class="c">
+    <label>কাকে পাঠানো (প্রাপক)</label><input type="text" id="to" value="স্নেহা">
+    <label>কে পাঠাল (প্রেরক)</label><input type="text" id="from" value="রহিম">
+    <label>বার্তা</label><textarea id="msg">ধন্যবাদ সবকিছুর জন্য</textarea>
+    <label>ধরন</label>
+    <div class="seg" id="kind">
+      <label><input type="radio" name="k" value="named" checked><span>নামে</span></label>
+      <label><input type="radio" name="k" value="all"><span>সবাইকে</span></label>
+      <label><input type="radio" name="k" value="anon"><span>বেনামি</span></label>
+      <label><input type="radio" name="k" value="sp"><span>বিশেষ</span></label>
+    </div>
+    <label>থিম</label><select id="th"></select>
+    <label>অ্যানিমেশন</label><select id="an"></select>
+    <label>পেছনের পেইজের মোড (বাবল যেন একই থাকে তা দেখার জন্য)</label>
+    <select id="mode"><option value="day">☀️ দিন</option><option value="night">🌙 রাত</option></select>
+    <label class="sw"><input type="checkbox" id="sw"> "কে পাঠাল" সুইচ (CFG.showSender / showAnon)</label>
+    <button class="go" id="go" type="button">▶ দেখুন</button>
+    <small>বাবল স্ক্রিনের ওপরে বসে; ✕ চেপে বন্ধ করা যায়।</small>
+  </div>
+</div>
+<script src="bubble.js?v=bb27"></script>
+<script>
+(function(){
+  var TH=[["rnd","🌈 রঙিন (এলোমেলো)"],["sun","🌅 সান"],["ocean","🌊 ওশান"],["grape","🍇 গ্রেপ"],["mint","🌿 মিন্ট"],["fire","🔥 ফায়ার"],["sky","☁️ স্কাই"],["candy","🍬 ক্যান্ডি"],["lime","🍋 লাইম"],["gold","সোনালি"],["pink","গোলাপি"],["green","সবুজ"],["blue","নীল"]];
+  var th=document.getElementById("th"), an=document.getElementById("an");
+  TH.forEach(function(x){var o=document.createElement("option");o.value=x[0];o.textContent=x[1];th.appendChild(o);});
+  th.value="grape";
+  var A=(window.faBub&&faBub.ANIMS)||[];
+  for(var i=0;i<11;i++){var o=document.createElement("option");o.value=i;o.textContent=(i+1)+". "+(A[i]||"অ্যানিমেশন "+(i+1));an.appendChild(o);}
+  document.getElementById("mode").onchange=function(){document.body.classList.toggle("night",this.value==="night");};
+  document.getElementById("go").onclick=function(){
+    if(!window.faBub||!faBub.show){alert("bubble.js লোড হয়নি।");return;}
+    var k=document.querySelector("input[name=k]:checked").value, sw=document.getElementById("sw").checked;
+    var to=document.getElementById("to").value, fr=document.getElementById("from").value.trim();
+    var o={t:document.getElementById("msg").value||"নমুনা বার্তা",a:+an.value};
+    if(th.value!=="rnd")o.c=th.value;
+    if(k==="named"){o.to=to;}
+    if(k==="anon"){o.an=true;}
+    if(k==="sp"){o.sp=true;if(th.value==="rnd")delete o.c;}
+    if(sw&&k!=="sp"&&fr)o.f=fr;
+    faBub.show(o);
+  };
+})();
+</script>
+</body>
+</html>

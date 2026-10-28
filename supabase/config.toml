@@ -1,0 +1,5 @@
+# শুধু Edge Function ডিপ্লয়ের জন্য (Supabase CLI)। কোনো secret এখানে নেই।
+project_id = "friend-adda"
+
+[functions.send-push]
+verify_jwt = false   # Database Webhook-কে আমরা নিজের x-webhook-secret হেডার দিয়ে চিনি

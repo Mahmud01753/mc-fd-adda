@@ -1,0 +1,67 @@
+FRIEND ADDA — ব্যাকগ্রাউন্ড পুশ সেটআপ গাইড (মালিকের জন্য, একবারের কাজ)
+=====================================================================
+ফলাফল: ফোনে চ্যাট বন্ধ/মিনিমাইজ থাকলেও "৩টি নতুন মেসেজ" নোটিফিকেশন আসবে।
+নিরাপত্তা: private কী ও সার্ভিস কী শুধু Supabase-এর Secrets-এ থাকবে; সাইটের কোনো ফাইলে নয়।
+
+⚡ সহজ পথ (প্রস্তাবিত): সাইট ফোল্ডারে টার্মিনাল খুলে  node supabase/setup-push.mjs  চালান — ধাপ ১,৩,৪,৫(ট্রিগার),৬ নিজে হয়; শেষে Desktop-এর SQL ফাইলটা SQL Editor-এ একবার Run করুন। নিচের ধাপগুলো হাতে করার বিকল্প।
+
+ধাপ ১ — VAPID কী বানান (নিজের কম্পিউটারে, Node.js লাগবে: nodejs.org)
+  টার্মিনালে:   npx web-push generate-vapid-keys --json
+  দুটো কী আসবে: publicKey ও privateKey। দুটোই কপি করে রাখুন।
+  ⚠ privateKey কাউকে দেবেন না, কোনো ফাইলে/চ্যাটে লিখবেন না।
+
+ধাপ ২ — SQL-27 চালান
+  Supabase → SQL Editor → New query → sql/SQL-27-PUSH-SUBSCRIPTIONS.sql-এর পুরোটা পেস্ট → Run।
+  "Success" এলে হয়ে গেছে। (আবার চালালেও ক্ষতি নেই।)
+
+ধাপ ৩ — Secrets সেট করুন
+  Supabase → Edge Functions → Secrets (বা Project Settings → Edge Functions) → Add new secret, ৪টি:
+    VAPID_PUBLIC_KEY      = ধাপ ১-এর publicKey
+    VAPID_PRIVATE_KEY     = ধাপ ১-এর privateKey
+    VAPID_SUBJECT         = mailto:আপনার-ইমেইল@example.com
+    PUSH_WEBHOOK_SECRET   = নিজে বানানো লম্বা এলোমেলো লেখা (২০+ অক্ষর, ইংরেজি/সংখ্যা) — ধাপ ৫-এ লাগবে
+  (SUPABASE_URL ও SERVICE_ROLE কী Supabase নিজেই দেয় — আপনি কিছু দেবেন না।)
+  কমান্ড-লাইনে করতে চাইলে:
+    npx supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:... PUSH_WEBHOOK_SECRET=...
+
+ধাপ ৪ — Function ডিপ্লয় করুন (দুইটার একটা পথ)
+  (ক) কমান্ড-লাইন (সাইটের আনজিপ করা ফোল্ডারের ভেতরে, যেখানে supabase/ ফোল্ডার আছে):
+        npx supabase login
+        npx supabase link --project-ref ynbkemwbznuxfhskkqqs
+        npx supabase functions deploy send-push --no-verify-jwt
+  (খ) ড্যাশবোর্ড থেকে: Edge Functions → Deploy a new function → Via Editor → নাম: send-push →
+        supabase/functions/send-push/index.ts-এর পুরোটা পেস্ট → Deploy।
+        তারপর function-এর Settings-এ "Verify JWT" বন্ধ (OFF) করে Save। ← এটা না করলে পুশ যাবে না।
+
+ধাপ ৫ — Database Webhook বানান
+  Supabase → Database → Webhooks → Create a new hook:
+    Name: fa-send-push
+    Table: mc2_ac_messages
+    Events: শুধু Insert (Update/Delete টিক দেবেন না)
+    Type: Supabase Edge Functions → Function: send-push → Method: POST
+    HTTP Headers → Add header:  নাম  x-webhook-secret   মান  (ধাপ ৩-এর PUSH_WEBHOOK_SECRET হুবহু)
+    Timeout: 5000 → Confirm।
+
+ধাপ ৬ — সাইটে public কী বসান
+  config.js-এ  vapid: ""  এর ভেতরে শুধু publicKey বসান:  vapid: "BEl...আপনার-public-key",
+  (url ও key অংশ ছোঁবেন না।) তারপর সাইট আবার পাবলিশ করুন।
+
+ধাপ ৭ — ফোনে টেস্ট
+  ১) দুইটা ডিভাইস/অ্যাকাউন্ট লাগবে: A (টেস্ট ফোন) ও B (মেসেজ পাঠানোর)।
+  ২) A-তে সাইট খুলে চ্যাটে ঢুকুন → ⋯ মেনু → "🔕 পুশ: বন্ধ (চালু করুন)" চাপুন → "Allow" দিন → "🔔 পুশ চালু হয়েছে।" দেখাবে।
+  ৩) A-র চ্যাট বন্ধ করুন/ব্রাউজার মিনিমাইজ করুন/স্ক্রীন লক করুন, ~৩০ সেকেন্ড অপেক্ষা করুন
+     (চ্যাট খোলা থাকলে গত ২৫ সেকেন্ডে পুশ আসে না — এটা ইচ্ছাকৃত)।
+  ৪) B থেকে ওই সেশনে মেসেজ পাঠান → A-তে "১টি নতুন মেসেজ" আসবে; আরও পাঠালে একই নোটিফিকেশন "২টি…" হয়ে বদলাবে।
+  ৫) না এলে: Supabase → Edge Functions → send-push → Logs দেখুন (401 = হেডার/সিক্রেট মেলেনি; 500 = SQL-27 চালানো হয়নি/Secrets ভুল)।
+
+📱 iPhone / iPad — জরুরি
+  iPhone-এ পুশ শুধু "হোম স্ক্রীনে ইনস্টল করা অ্যাপে" কাজ করে (iOS/iPadOS 16.4 বা নতুন)। Safari ট্যাবে চলবে না।
+  করণীয়: Safari-তে সাইট খুলুন → Share (⬆️) → Add to Home Screen → হোম স্ক্রীনের Friend Adda আইকন থেকে খুলুন
+  → চ্যাটে ঢুকে ⋯ → "পুশ চালু করুন" চাপুন → Allow দিন। (Safari ট্যাবে চাপলে অ্যাপ বলে দেবে কী করতে হবে।)
+
+কিছু জেনে রাখুন
+  • এক ডিভাইস = এক সেশন: যে সেশনে সবশেষ ঢুকবেন, পুশ সেই সেশনের। চ্যাট থেকে "←"/লগআউটে বের হলে ওই ডিভাইসের পুশ-তালিকা মোছে; আবার ঢুকলে নিজে থেকে ফেরে (পুশ অন থাকলে)।
+  • মেসেজের লেখা নোটিফিকেশনে কখনো যায় না — শুধু সংখ্যা। লুকানো/মডারেটেড/মোছা মেসেজে পুশ যায় না; ব্যান করা ইউজারকে পাঠানো হয় না।
+  • মেয়াদোত্তীর্ণ ডিভাইস (404/410) অটো মুছে যায়। একজনের সর্বোচ্চ ৫ ডিভাইস।
+  • পুশ বন্ধ করতে: ⋯ মেনু → "🔔 পুশ: চালু (বন্ধ করুন)"।
+  • VAPID কী পরে বদলালে: সব ইউজারের পুরোনো পুশ অকেজো হয়; নতুন কী দিলে চ্যাটে ঢুকলেই অটো নতুন করে সাবস্ক্রাইব হয়।

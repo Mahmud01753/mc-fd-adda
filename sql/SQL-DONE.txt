@@ -34,6 +34,22 @@ SQL চালানোর হিসাব — শুধু মালিক "ও�
 ✅ sql/SQL-24-BUBBLE-DEFAULT-TOP-BIG.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৬) — বাবলের ডিফল্ট জায়গা ওপরে (top) ও সাইজ বড় (mc2_bub_cfg)
 ✅ sql/SQL-25-CHAT-THEME.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৭) — চ্যাট ও হোমের থিম, কাস্টম থিম, র‍্যান্ডম ঘোরার সেটিং সার্ভারে সেভ (টেবিল mc2_theme_cfg, ফাংশন mc2_admin_set_theme)
 
+✅ sql/SQL-26-RESTRICTION-ONLY-ON-SELECTED-MESSAGE.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৭) — Restriction শুধু বাছা বার্তায় ⛔ (fa_restrict-এ p_msg, fa_rs-এ mid)
+
+✅ sql/SQL-27-PUSH-SUBSCRIPTIONS.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৮) — ওয়েব-পুশ গ্রাহক তালিকা (টেবিল fa_push_subs, ফাংশন fa_push_save / fa_push_delete)
+✅ sql/SQL-28-PUSH-WEBHOOK-TRIGGER.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৮; আসল সিক্রেটসহ কপি চ্যাট থেকে চালানো, জিপের ফাইলে সিক্রেট-টেমপ্লেট) — নতুন মেসেজে send-push ডাকার ট্রিগার (fa_push_hook, fa_push_hook_t)
+
 • private-notes/site-sql-records/ — পুরোনো SQL-এর রেকর্ড, চালাতে হয় না
 
 sql/ ফোল্ডার রেকর্ড/ব্যাকআপ হিসেবে জিপে থাকে।
+✅ sql/SQL-29-PUSH-HOOK-APIKEY.sql — চালানো হয়েছে (২০২৬-১০-২৮) — পুরোনো; SQL-31 এটা বদলে দিয়েছে
+✅ sql/SQL-30-PUSH-SAVE-REGEX-FIX.sql — চালানো হয়েছে (২০২৬-১০-২৮) — পুশ সেভ ফাংশনের regex ঠিক
+✅ sql/SQL-31-PUSH-HOOK-PUBLISHABLE-KEY.sql — চালানো হয়েছে (২০২৬-১০-২৮, আসল সিক্রেটসহ কপি দিয়ে; এই ফাইল টেমপ্লেট) — ট্রিগার এখন নতুন publishable key পাঠায়, send-push 200 দিচ্ছে
+
+✅ sql/SQL-32-RESTRICTION-MSG-FOREVER-USER-DEFAULTS.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৮) — মেসেজ Restriction আজীবন-লুকানো লেখা, ইউজার Restriction, ডিফল্ট সময় সেটিং
+
+✅ sql/SQL-33-IP-BAN-AND-PERMANENT-BAN-WITHOUT-REPORTS.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৮) — আইপি ব্যান + স্থায়ী ব্যান রিপোর্ট ছাড়া/সহ (p_with_reports), একই আইপির ইউজার দেখা
+✅ sql/SQL-34-SAME-DEVICE-DETECTION.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৮) — একই ডিভাইস থেকে নতুন ইউজার-আইডিতে ফিরলে শনাক্ত করা
+✅ sql/SQL-35-RESTRICTION-END-SHOWS-MESSAGE-AGAIN.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৮) — Restriction বন্ধ/তুলে নিলে মেসেজের লেখা আবার দেখা যাবে
+✅ sql/SQL-36-ADMIN-FORGIVE-MESSAGE-ANYTIME.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৮) — অ্যাডমিন যেকোনো সময় "ভুল ছিল" বলে মেসেজের লেখা আবার দেখাতে পারবে
+✅ sql/SQL-37-BUBBLE-REMEMBER-UNSEEN-CUSTOM-DAYS.sql — চালানো হয়েছে (মালিকের নির্দেশে ২০২৬-১০-২৮) — না-দেখা বাবল কত দিন মনে রাখবে (অ্যাডমিনে কাস্টম দিন)

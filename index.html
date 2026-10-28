@@ -6,6 +6,11 @@
 <title>বেনামি চ্যাট · M.C COLLEGE MASTER’S 2023-24 · FRIENDS ADDA</title>
 <meta name="description" content="M.C COLLEGE MASTER’S 2023-24 — FRIENDS ADDA · Political science chat room">
 <meta name="theme-color" content="#0f2d20">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Friend Adda">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
 <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
@@ -175,8 +180,8 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
 
     <div id="msg" class="ok">⏳ লোড হচ্ছে…</div>
     <div class="gorow">
-      <button class="go anon" id="goAnon" type="button" disabled>নাম ছাড়া Enter</button>
-      <button class="go" id="go" type="button" disabled>নামসহ Enter</button>
+      <button class="go anon" id="goAnon" type="button">নাম ছাড়া Enter</button>
+      <button class="go" id="go" type="button">নামসহ Enter</button>
     </div>
 
     <div class="rule"><span class="rl">📌 ভদ্রভাবে চ্যাট করুন। অশালীন, হয়রানিমূলক বা</span><span class="rl">আপত্তিকর মেসেজ দিলে ব্যান করা হতে পারে।</span></div>
@@ -201,8 +206,9 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
 </div>
 <footer>বন্ধুদের আড্ডার জন্য তৈরি · শুধু চ্যাট</footer>
 
-<script src="bubble.js?v=bb24"></script>
-<script src="chat.js?v=stk28"></script>
+<script src="bubble.js?v=bb30"></script>
+<script src="pwa.js?v=pw6"></script>
+<script src="chat.js?v=stk50"></script>
 <script>
 (function () {
   var $ = function (s) { return document.querySelector(s); };
@@ -211,7 +217,9 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
 
   var sayT = 0;
   function say(t, ok, ms) { clearTimeout(sayT); msg.textContent = t || ""; msg.className = ok ? "ok" : ""; if (t && ms) sayT = setTimeout(function () { msg.textContent = ""; msg.className = ""; nm.classList.remove("nmerr"); }, ms); }
-  function ready() { go.disabled = !ROOM; var ga = $("#goAnon"); if (ga) ga.disabled = !ROOM; }
+  // বোতাম সবসময় চালু: রুম না আসা পর্যন্ত চাপলে নাম ধরে রাখে, রুম এলে নিজে ঢোকে (PEND)
+  var SLOW = "আপনার ইন্টারনেট ব্যবস্থা অত্যন্ত দুর্বল, অপেক্ষা করুন ধীরে ধীরে আসতেছে", PEND = null, ENTERED = false;
+  function ready() { go.disabled = false; var ga = $("#goAnon"); if (ga) ga.disabled = false; }
   function anonName() { var d = "০১২৩৪৫৬৭৮৯", n = String(100 + Math.floor(Math.random() * 900)).replace(/\d/g, function (c) { return d[+c]; }); return "বেনামি" + n; }
 
   var P = {}; try { P = (F && F.saved()) || {}; } catch (e) {}
@@ -306,18 +314,23 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
     if (c === "dept") return "ডাটাবেসে “রাষ্ট্রবিজ্ঞান” বিভাগ নেই — sql/SQL-3b-GLOBAL-NOTICE-SITE-BACKGROUND-NO-RERUN.sql চালান";
     if (c === "session") return "ডাটাবেসে ২০২৩-২৪ সেশন নেই — sql/SQL-3b-GLOBAL-NOTICE-SITE-BACKGROUND-NO-RERUN.sql চালান";
     if (c === "none") return "হোমে কোনো রুম চালু করা নেই — অ্যাডমিন → 📁 চ্যাট মডিফাই থেকে “🏠 হোমে দেখান” দিন";
-    return "ইন্টারনেট/সার্ভার সংযোগ হয়নি — নেট দেখে পেইজ রিফ্রেশ দিন";
+    return SLOW;
   }
-  function fail(code) { ROOM = null; bar.innerHTML = '<span class="ri">⚠️</span><span class="rt">রুম পাওয়া যায়নি</span>'; say("রুম পাওয়া যায়নি: " + why(code)); ready(); }
+  function fail(code) { if (ROOM) return; /* ক্যাশের রুম আছে: চুপচাপ */ bar.innerHTML = '<span class="ri">⚠️</span><span class="rt">রুম পাওয়া যায়নি</span>'; var w = why(code); say(w === SLOW ? SLOW : "রুম পাওয়া যায়নি: " + w); ready(); }
+  // নেট ত্রুটি (e.net) = কোড নেই; শুধু সার্ভারের ৪০০/৪০৪-এ কলাম/টেবিল-নেই ধরা হয়
+  function isNet(e) { return !!(e && e.net); }
+  function sq(e) { return !!(e && (e.status === 400 || e.status === 404)); }
+  function retry(fn, n) { return fn().catch(function (e) { if (isNet(e) && n > 0) return new Promise(function (r) { setTimeout(r, 800); }).then(function () { return retry(fn, n - 1); }); throw e; }); }
   function first(cols, filter) {
     var q = "mc2_ac_sessions?select=" + cols.join(",") + (filter ? "&" + filter : "") + "&order=sort,name";
-    return F.api(q).catch(function (e) {
+    return retry(function () { return F.api(q); }, 2).catch(function (e) {
+      if (!sq(e)) throw e; // নেট ত্রুটিতে কলাম বাদ নয় (পাসওয়ার্ড-দেওয়া রুম পাসওয়ার্ডহীন ধরা বন্ধ)
       var drop = ["pw_note_on", "pw_note", "has_pw"].filter(function (c) { return cols.indexOf(c) >= 0; })[0] || "";
       if (!drop) throw e;
       return first(cols.filter(function (c) { return c !== drop; }), filter);
     });
   }
-  function build(S, D, legacy) {
+  function build(S, D, legacy, fromCache) {
     DEPTS = {}; D.forEach(function (d) { DEPTS[d.id] = d; });
     ROOMS = S.filter(function (x) { return DEPTS[x.dept_id]; }).map(function (x) { return { d: x.dept_id, s: x.id, dname: DEPTS[x.dept_id].name, sname: x.name, hasPw: x.has_pw, note: x.pw_note, noteOn: x.pw_note_on, sort: x.sort }; });
     ROOMS.sort(function (a, b) { return (DEPTS[a.d].sort - DEPTS[b.d].sort) || (a.sort - b.sort); });
@@ -332,15 +345,29 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
     var want = ""; try { var U = JSON.parse(localStorage.getItem("fa_unlock") || "null"); if (U && U.s) want = String(U.s); } catch (e) {}
     var cand = pick(ROOMS, function (r) { return String(r.s) === want; }) || pick(ROOMS, function (r) { return String(r.s) === String(P.s); }) || pick(ROOMS, function (r) { try { return String(r.s) === localStorage.getItem(RK); } catch (e) { return false; } }) || ROOMS[0];
     setRoom(cand); drawBar(cand); say("");
-    autoEnter();
+    if (PEND) { var pd = PEND; PEND = null; if (pd === "anon") anonGo(); else goClick(); return; } // রুম আসার আগে চাপা Enter এখন চলবে
+    if (!fromCache && !ENTERED) autoEnter(); // ক্যাশ থেকে আঁকলে অটো-ঢোকা নয়, সদ্য-আনা তথ্যে হবে
+  }
+  var RCK = "fa_rooms_cache", RTRY = 0;
+  function loadRooms() {
+    retry(function () { return F.api("mc2_ac_depts?select=id,name,sort&order=sort,name"); }, 2).then(function (D) {
+      var cols = ["id", "name", "dept_id", "sort", "has_pw", "pw_note", "pw_note_on"];
+      return first(cols.concat(["home_on"]), "home_on=eq.true").then(function (S) { return { D: D, S: S, l: false }; }, function (e) {
+        if (!sq(e)) throw e; // নেট/সার্ভার ত্রুটিতে পুরোনো নিয়মে নামা নয়
+        return first(cols, "").then(function (S) { return { D: D, S: S, l: true }; }); // home_on নেই (আসল ৪০০/৪০৪) → আগের নিয়ম
+      });
+    }).then(function (R) {
+      build(R.S, R.D, R.l, false);
+      try { localStorage.setItem(RCK, JSON.stringify({ D: R.D, S: R.S, l: R.l })); } catch (e) {}
+    }).catch(function (e) {
+      if (isNet(e)) { if (!ROOM) say(SLOW); if (!ROOM || ++RTRY < 20) setTimeout(loadRooms, 3000); return; } // নেট ত্রুটি: নিজে নিজে আবার চেষ্টা
+      fail(e && e.message);
+    });
   }
   if (!F || !F.ON) { say("চ্যাট এখনো চালু নয় — config.js-এ Supabase URL/key বসান।"); }
   else {
-    F.api("mc2_ac_depts?select=id,name,sort&order=sort,name").then(function (D) {
-      return first(["id", "name", "dept_id", "sort", "has_pw", "pw_note", "pw_note_on", "home_on"], "home_on=eq.true").then(function (S) { build(S, D, false); }, function () {
-        return first(["id", "name", "dept_id", "sort", "has_pw", "pw_note", "pw_note_on"], "").then(function (S) { build(S, D, true); }); // home_on নেই → আগের নিয়ম
-      });
-    }).catch(function (e) { fail(e && e.message); });
+    try { var RC = JSON.parse(localStorage.getItem(RCK) || "null"); if (RC && RC.S && RC.D) build(RC.S, RC.D, !!RC.l, true); } catch (e) { ROOM = null; } // শেষ সফল তালিকা সাথে সাথে
+    loadRooms();
   }
 
   window.addEventListener("hashchange", function () { if (location.hash !== "#anon") { try { var q = F && F.saved(); if (q && q.n) nm.value = String(q.n).slice(0, 20); } catch (e) {} } });
@@ -356,7 +383,7 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
     return v;
   }
   function enter() {
-    var au = AUTOF; AUTOF = false; var an = ANON; ANON = false;
+    ENTERED = true; var au = AUTOF; AUTOF = false; var an = ANON; ANON = false;
     if (!an && au) { try { an = localStorage.getItem("fa_anon_on") === "1"; } catch (e) {} } // আগের বার বেনামে ঢুকে থাকলে অটো-এন্টারেও একই কোড
     try { localStorage.setItem("fa_anon_on", an ? "1" : "0"); } catch (e) {}
     var run = function () { if (!au && window.FADoor && FADoor.on()) { try { FADoor.play(nick, { anon: an }); } catch (e) {} } F.enter(String(ROOM.d), String(ROOM.s), nick, ROOM.dn, ROOM.sn, au); }; // দরজার এনিমেশন (door.js) ওপরে চলে, নিচে চ্যাট লোড হয়
@@ -382,7 +409,7 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
       if (r === 1) return enter();
       if (r === 2 || r === -2) { anonNoteOff(); forget(); say(""); if (fromClick) { openCode(); cme.textContent = "কোড বদলেছে — নতুন কোড দিন।"; } else say("কোড বদলেছে — নাম দিয়ে Enter চেপে নতুন কোড দিন।"); }
       else { anonNoteOff(); say(r === 0 ? "এই চ্যাট এখন বন্ধ।" : "এখন ঢোকা যায়নি — Enter Chat চাপুন।"); }
-    }).catch(function () { anonNoteOff(); say("নেটওয়ার্ক সমস্যা — Enter Chat চাপুন।"); });
+    }).catch(function (e) { anonNoteOff(); say(isNet(e) ? SLOW : "এখন ঢোকা যায়নি — Enter Chat চাপুন।"); });
     return true;
   }
   var cm = $("#cm"), cd = $("#cd"), cme = $("#cme"), cmo = $("#cmo");
@@ -397,7 +424,7 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
     F.rpc("mc2_ac_join", { p_session: +ROOM.s, p_voter: F.vid(), p_pw: cd.value }).then(function (r) {
       if (r === 1) { closeCode(); keep(v); return enter(); }
       bad(r === 2 || r === -2 ? "কোড ঠিক নয়। আবার চেষ্টা করুন।" : r === -4 ? "অনেকবার চেষ্টা করেছেন — কিছুক্ষণ পরে আবার চেষ্টা করুন।" : r === 0 ? "এই চ্যাট এখন বন্ধ।" : "ঢোকা যায়নি।");
-    }).catch(function () { bad("যাচাই করা যায়নি — নেটওয়ার্ক দেখুন।"); });
+    }).catch(function (e) { if (isNet(e)) { cme.textContent = SLOW; cmo.disabled = false; } else bad("যাচাই করা যায়নি।"); });
   }
   cmo.addEventListener("click", submitCode);
   $("#cmx").addEventListener("click", function () { ANON = false; closeCode(); });
@@ -436,7 +463,7 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
       ln.setAttribute("x1", x1); ln.setAttribute("y1", y1); ln.setAttribute("x2", x2); ln.setAttribute("y2", y2); ln.style.display = "";
     }, 200);
   }
-  function anonGo() { if (!ROOM) { say("রুম লোড হচ্ছে — একটু অপেক্ষা করুন।"); return; } anonYes(); } // পপআপ নেই: ক্লিকেই ঢোকে, মাঝখানে ৮ সেকেন্ডের নোটিশ
+  function anonGo() { if (!ROOM) { PEND = "anon"; say(SLOW); return; } anonYes(); } // পপআপ নেই: ক্লিকেই ঢোকে, মাঝখানে ৮ সেকেন্ডের নোটিশ
   function anonYes() { closeAnon(); ANON = true; if (saved() || !ROOM.hasPw) anonNote(); /* ক্লিকের সাথে সাথে */ if (autoEnter(true)) return; if (!ROOM.hasPw) { enter(); return; } openCode(); }
   function anonNo() { closeAnon(); ANON = false; say("নাম লিখে “নামসহ Enter” চাপুন।", true); try { nm.focus(); } catch (e) {} }
   amok.addEventListener("click", anonYes); $("#amno").addEventListener("click", anonNo);
@@ -446,16 +473,17 @@ html.ios.iab #acx input,html.ios.iab #acx textarea,html.ios.iab #acI,html.ios.ia
   $("#goAnon").addEventListener("click", anonGo); // বামের "নাম ছাড়া Enter": নামের ঘরে যা-ই থাকুক, নেয় না
   $("#htab").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); anonGo(); } });
   nm.addEventListener("input", function () { nm.classList.remove("nmerr"); });
-  go.addEventListener("click", function () {
-    if (!ROOM) return;
+  function goClick() {
     ANON = false;
     if (!nm.value.trim()) { nm.classList.add("nmerr"); say("নাম ছাড়া চাইলে বামের “নাম ছাড়া Enter” চাপুন। অন্যথায় নাম লাগবে।"); try { nm.focus(); } catch (e) {} return; } // নাম ছাড়া নামসহ পথে ঢোকা বন্ধ
+    if (!ROOM) { PEND = "named"; say(SLOW); return; } // রুম না এলে নাম ধরে রাখে, রুম এলে নিজে ঢোকে
         if (autoEnter(true)) return;
     if (!ROOM.hasPw) { enter(); return; }
     openCode();
-  });
+  }
+  go.addEventListener("click", goClick);
 })();
 </script>
-<script src="bg12-anim.js?v=b9" defer></script><script src="door.js?v=d35" defer></script>
+<script src="bg12-anim.js?v=b9" defer></script><script src="door.js?v=d46" defer></script>
 </body>
 </html>

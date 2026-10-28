@@ -12,6 +12,12 @@
   force = true
 
 [[redirects]]
+  from = "/supabase/*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
   from = "/START-HERE.txt"
   to = "/404.html"
   status = 404
@@ -22,3 +28,17 @@
   to = "/404.html"
   status = 404
   force = true
+
+# PWA (ভাগ ২): sw.js কখনো ক্যাশ হবে না এবং পুরো সাইটের scope পাবে; ম্যানিফেস্টের সঠিক টাইপ।
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Service-Worker-Allowed = "/"
+    Content-Type = "application/javascript; charset=utf-8"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json; charset=utf-8"
+    Cache-Control = "no-cache"

@@ -32,6 +32,7 @@
 })();
 (function () {
   var C = window.MC_CFG || {}, ON = !!(C.url && C.key), base = ON ? String(C.url).replace(/\/$/, "") : "", iv = null, CUR = null, BUBMS = 4000;
+  var UNSEEN = 0, NEWN = 0, LOVEC = null; // part126
   var SEL = 0, SENT = {}, ONL = 0, MSGS = [], MET = {}, UP = true, REPLY = null, SIG = "", MORE = true, LASTSEEN = 0, BUSY = false;
   var LS = { get: function (k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
   var esc = function (t) { return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
@@ -50,11 +51,32 @@
       pptx: ["file", "application/vnd.openxmlformats-officedocument.presentationml.presentation", 25] };
   var EVS = [], EVLAST = -1, TYP = 0, LT = 0, LB = false, LV = null, ACCEPT = Object.keys(FT).map(function (e) { return "." + e; }).join(","), NOMR = false, NOMN = false, ME = { s: "ok", w: [] }, WSHOW = {}, MINZ = false, MINL = 0, PH = "home", TCH = 0;
   var RR = [["abuse", "🤬 গালিগালাজ / অশ্লীল ভাষা"], ["harass", "😡 হয়রানি / বুলিং"], ["threat", "⚠️ হুমকি / সহিংসতা"], ["adult", "🔞 অশালীন ছবি/ভিডিও/কনটেন্ট"], ["spam", "📢 স্প্যাম / বিজ্ঞাপন / লিংক"], ["privacy", "🔒 ব্যক্তিগত তথ্য ফাঁস"], ["illegal", "🚫 বেআইনি/ক্ষতিকর ফাইল"], ["other", "✍️ অন্য কারণ"]];
+  var HM = {}, FM = {}, DF = { m: 52560000, u: 60 }, OPO = {}; // part151: HM = যে বার্তার লেখা চিরতরে লুকানো (সার্ভার দেয়); DF = অ্যাডমিন-সেট ডিফল্ট মিনিট (মেসেজ: আজীবন, ইউজার: ৬০); OPO = অ্যাডমিন যেগুলোর আসল লেখা খুলে রেখেছে
   var RS = { p: {}, m: [], sg: "" }, RSV = 0, RST = null, BNK = "", LK = null, SHOT = false, BAD = [], BADT = 0, SHB = 0; // Restriction (ওয়ার্নিং-চিহ্ন): p = সবার, m = নিজের; SQL: supabase-restrict.sql
   var TMPV = ""; function vid() { if (window.mcVid) return window.mcVid(); var v = LS.get("mc2_vid", ""); if (!v) { if (window.faIdbPending) { if (!TMPV) TMPV = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); return TMPV; } v = TMPV || "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); LS.set("mc2_vid", v); } return v; }
   function H() { return { apikey: C.key, Authorization: "Bearer " + C.key, "Content-Type": "application/json", "x-voter": vid() }; }
-  function api(p) { return fetch(base + "/rest/v1/" + p, { headers: H() }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
-  function rpc(n, a) { return fetch(base + "/rest/v1/rpc/" + n, { method: "POST", headers: H(), body: JSON.stringify(a) }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); }
+  // নেট ত্রুটি আর সার্ভারের ত্রুটি আলাদা: e.status = HTTP কোড (৪০০/৪০৪ ইত্যাদি), e.net = নেট ত্রুটি/টাইমআউট (কোড নেই)
+  function httpErr(r) { var e = new Error(r.status); e.status = r.status; return e; }
+  function netErr(x) { var e = new Error("net"); e.net = true; e.cause = x; return e; }
+  function api(p) {
+    var ac = window.AbortController ? new AbortController() : null, t = ac ? setTimeout(function () { try { ac.abort(); } catch (x) {} }, 12000) : 0, o = { headers: H() };
+    if (ac) o.signal = ac.signal;
+    return fetch(base + "/rest/v1/" + p, o).then(function (r) { clearTimeout(t); if (!r.ok) throw httpErr(r); return r.json(); }, function (x) { clearTimeout(t); throw netErr(x); });
+  }
+  // part154: ডিভাইসের ছাপ (স্ক্রিন/ভাষা/টাইমজোন/প্রসেসর/GPU-এর হ্যাশ) — একই ফোন নতুন ইউজার-আইডিতে ফিরলে অ্যাডমিন শনাক্ত করতে পারে (SQL-34)। ৬ ঘণ্টায় একবার; ব্যক্তিগত তথ্য নয়।
+  function devFp() {
+    var n = navigator, s = screen || {}, g = "";
+    try { var cv = document.createElement("canvas"), gl = cv.getContext("webgl") || cv.getContext("experimental-webgl"); if (gl) { var ex = gl.getExtension("WEBGL_debug_renderer_info"); g = ex ? String(gl.getParameter(ex.UNMASKED_RENDERER_WEBGL) || "") : String(gl.getParameter(gl.RENDERER) || ""); } } catch (e) {}
+    var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
+    var str = [Math.max(s.width || 0, s.height || 0), Math.min(s.width || 0, s.height || 0), s.colorDepth || 0, Math.round((window.devicePixelRatio || 1) * 100), n.hardwareConcurrency || 0, n.deviceMemory || 0, n.maxTouchPoints || 0, n.platform || "", (n.languages && n.languages.length ? n.languages.join(",") : n.language || ""), tz, new Date().getTimezoneOffset(), g].join("|");
+    var h1 = 0xdeadbeef, h2 = 0x41c6ce57, i, c; for (i = 0; i < str.length; i++) { c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909); h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return "f" + (h2 >>> 0).toString(36) + (h1 >>> 0).toString(36);
+  }
+  function devFpSend() {
+    try { var t = +LS.get("fa_fp_t", 0) || 0; if (Date.now() - t < 21600000) return; LS.set("fa_fp_t", Date.now()); rpc("fa_dev_seen", { p_voter: vid(), p_fp: devFp() }).catch(function () {}); } catch (e) {}
+  }
+  function rpc(n, a) { return fetch(base + "/rest/v1/rpc/" + n, { method: "POST", headers: H(), body: JSON.stringify(a) }).then(function (r) { if (!r.ok) throw httpErr(r); return r.json(); }, function (x) { throw netErr(x); }); }
   function toast(t) { var e = $("#acT"); if (!e) return; e.textContent = t; e.style.opacity = 1; clearTimeout(toast.t); toast.t = setTimeout(function () { e.style.opacity = 0; }, 2400); }
   function tm(t) { var d = new Date(t), h = d.getHours(), m = d.getMinutes(), n = new Date(), s = bd((h % 12 || 12) + ":" + (m < 10 ? "0" : "") + m) + " " + (h < 12 ? "AM" : "PM"); if (d.toDateString() !== n.toDateString()) s = bd(d.getDate()) + " " + MON[d.getMonth()] + ", " + s; return s; }
   function sz(n) { return n > 1048576 ? bd((n / 1048576).toFixed(1)) + " MB" : bd(Math.max(1, Math.round(n / 1024))) + " KB"; }
@@ -107,6 +129,7 @@
     "#acx .ac{padding-bottom:calc(max(8px,env(safe-area-inset-bottom)) + var(--fa-lift))}#acT{bottom:calc(62px + var(--fa-lift))}";
 
   // ---------- Restriction / ব্যান ডিজাইন ----------
+  st.textContent += "#acx .rsl{display:flex;align-items:center;gap:6px;line-height:1}#acx .rsT{font-size:13px;font-weight:900;letter-spacing:.1px}#acx .rsn{display:block;font-size:8.5px;font-weight:600;opacity:.8;margin-top:0;line-height:1}#acx .bb.rsbad .tm{display:none}#acx .rsob{flex:none;margin-left:auto;width:18px;height:18px;padding:0;border-radius:50%;border:1px solid #d93025;background:#fff;font-size:10px;line-height:1;cursor:pointer}#acx .rso{margin-top:6px;padding-top:6px;border-top:1px dashed rgba(217,48,37,.5);white-space:pre-wrap;overflow-wrap:anywhere}";
   st.textContent += "#acx .avs{position:absolute;left:50%;top:-9px;transform:translateX(-50%);z-index:2;white-space:nowrap;font-family:inherit;font-weight:800;font-size:7.5px;line-height:1.4;letter-spacing:.2px;color:#7a1410;background:repeating-linear-gradient(135deg,#fde4e2 0 6px,#fbd0cc 6px 12px);border:1.5px dashed #d93025;border-radius:999px;padding:0 6px;cursor:pointer;box-shadow:0 1px 3px rgba(217,48,37,.3)}";
   st.textContent += "#acx .avw{position:relative;flex:none;display:block}#acx .avw .av{filter:saturate(.45)}#acx .avx{position:absolute;top:-6px;right:-6px;width:17px;height:17px;border-radius:50%;background:#d93025;color:#fff;font-size:10px;font-weight:900;display:grid;place-items:center;border:1.5px solid var(--bg);cursor:pointer;line-height:1;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.35)}" +
     "#acx .rst{display:inline-flex;align-items:center;gap:4px;align-self:flex-start;font-size:10.5px;font-weight:800;letter-spacing:.4px;color:#fff;background:#d93025;border-radius:999px;padding:2px 10px;margin:0 0 3px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.25)}#acx .mine .rst{align-self:flex-end}" +
@@ -121,7 +144,7 @@
     "#acx .rsp{font-size:8px;padding:0 5px;margin-left:3px;line-height:1.5;letter-spacing:0}#acx .rst{display:flex;flex-direction:column;align-items:flex-start;gap:0;font-size:17px;line-height:1.2;font-weight:800;letter-spacing:0;padding:3px 12px 4px;border-radius:12px;margin:0 0 3px}#acx .rst small{font-size:8px;font-weight:600;line-height:1.2;opacity:.95;letter-spacing:0}#acx .avx{width:12px;height:12px;font-size:7px;top:-4px;right:-4px;border-width:1px}" +
     "#acx .rsb{padding:3px 10px;font-size:11px;line-height:1.35;max-height:14vh;border-bottom-width:1px}#acx .rsb .rsw{padding:2px 7px;margin:2px 0;font-size:11px;border-radius:6px}#acx .rsb .rsw small,#acx .rsb .sm2{font-size:9.5px}";
   st.textContent += "#acx.noshot{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}#acx.noshot input{-webkit-user-select:text;user-select:text}#acx.shotblur>*:not(#acShC):not(#acWm){visibility:hidden;pointer-events:none}#acShC{display:none;position:absolute;top:0;right:0;bottom:0;left:0;z-index:75;align-items:center;justify-content:center;flex-direction:column;text-align:center;font-size:44px;font-weight:800;color:#fff;background:#000;line-height:1.4}#acShC small{display:block;font-size:13px;font-weight:500;opacity:.8;max-width:260px}#acx.shotblur #acShC{display:flex}@media print{body.faNoShot *{display:none!important}body.faNoShot::before{content:'প্রিন্ট বন্ধ';display:block;font-size:30px}}" +
-    "#acx .bb.rsbad{background:repeating-linear-gradient(135deg,#fde4e2 0 10px,#fbd0cc 10px 20px)!important;color:#7a1410!important;border:2px dashed #d93025;box-shadow:0 0 0 3px rgba(217,48,37,.14)!important}#acx .bb.rsbad .tm{color:#7a1410!important}#acx .rsh{font-weight:800;font-size:13.5px;line-height:1.35}#acx .rsc{font-size:12px;font-weight:700;margin-top:3px;opacity:.92}#acx .rsw b{overflow-wrap:anywhere}@media(prefers-color-scheme:dark){#acx .bb.rsbad{background:repeating-linear-gradient(135deg,#3b1614 0 10px,#2f1110 10px 20px)!important;color:#ffd9d6!important}#acx .bb.rsbad .tm{color:#ffd9d6!important}}";
+    "#acx .bb.rsbad{background:repeating-linear-gradient(135deg,#fde4e2 0 10px,#fbd0cc 10px 20px)!important;color:#7a1410!important;border:1px dashed #d93025;box-shadow:none!important;padding:2px 8px 3px!important;border-radius:10px!important;min-width:0!important;width:fit-content;line-height:1.1!important}#acx .bb.rsbad .tm{color:#7a1410!important}#acx .rsh{font-weight:800;font-size:13.5px;line-height:1.35}#acx .rsc{font-size:12px;font-weight:700;margin-top:3px;opacity:.92}#acx .rsw b{overflow-wrap:anywhere}@media(prefers-color-scheme:dark){#acx .bb.rsbad{background:repeating-linear-gradient(135deg,#3b1614 0 10px,#2f1110 10px 20px)!important;color:#ffd9d6!important}#acx .bb.rsbad .tm{color:#ffd9d6!important}}";
   document.head.appendChild(st);
 
 
@@ -134,7 +157,7 @@
   function react(id, e) {
     if (lockOn()) return; var x = MET[id] = MET[id] || {}, r = x.r = x.r || {};
     if (x.m) { r[x.m] = (r[x.m] || 1) - 1; if (r[x.m] <= 0) delete r[x.m]; }
-    if (x.m === e) x.m = null; else { x.m = e; r[e] = (r[e] || 0) + 1; }
+    if (x.m === e) x.m = null; else { x.m = e; r[e] = (r[e] || 0) + 1; if (LOVES[e]) { if (LOVEC) LOVEC[id] = loveN(x); setTimeout(function () { loveFly(id); }, 90); } }
     render(true);
     rpc("mc2_ac_react", { p_msg: id, p_voter: vid(), p_emoji: e }).catch(function () {}).then(function () { rtNudge(); return load("new"); });
   }
@@ -234,10 +257,55 @@
     b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up);
   }
   function minimize() { var R = $("#acx"); if (!R || !CUR) return; MINZ = true; MINL = MSGS.length ? MSGS[MSGS.length - 1].id : 0; R.style.display = "none"; pill(); location.hash = PH && PH !== "anon" ? PH : "home"; }
-  function restore() { var R = $("#acx"); MINZ = false; pill(); if (R) { R.style.display = ""; if (location.hash !== "#anon") location.hash = "anon"; if ($("#acM")) { render(true, "x"); load("new"); } } else if (location.hash === "#anon") gate(); else location.hash = "anon"; }
+  function restore() { var R = $("#acx"); MINZ = false; pill(); try { if (window.FAPwa) FAPwa.clear(); } catch (z) {} if (R) { R.style.display = ""; if (location.hash !== "#anon") location.hash = "anon"; if ($("#acM")) { render("bottom", "x"); load("new"); } } else if (location.hash === "#anon") gate(); else location.hash = "anon"; }
 
   function root() { var e = $("#acx"); if (!e) { e = document.createElement("div"); e.id = "acx"; e.setAttribute("role", "dialog"); e.setAttribute("aria-label", "বেনামি চ্যাট"); document.body.appendChild(e); } return e; }
-  function unjoin() { if (!CUR || !$("#acM")) return; try { fetch(base + "/rest/v1/rpc/mc2_ac_unjoin", { method: "POST", keepalive: true, headers: H(), body: JSON.stringify({ p_session: +CUR.s, p_voter: vid() }) }).catch(function () {}); } catch (e) {} } // ছাড়লে পাসওয়ার্ড-অ্যাক্সেস মোছে
+  function unjoin() { if (!CUR || !$("#acM")) return; pushDrop(); try { fetch(base + "/rest/v1/rpc/mc2_ac_unjoin", { method: "POST", keepalive: true, headers: H(), body: JSON.stringify({ p_session: +CUR.s, p_voter: vid() }) }).catch(function () {}); } catch (e) {} } // ছাড়লে পাসওয়ার্ড-অ্যাক্সেস মোছে
+  // ---- ওয়েব-পুশ (SQL-27 + Edge Function send-push): ব্যাকগ্রাউন্ডেও নতুন মেসেজের খবর ----
+  var PK = String(C.vapid || "").trim(), PWHY = ""; // PWHY = শেষ ব্যর্থতার কারণ (টোস্টে দেখায়)
+  function pushOK() { return !!PK && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+  function pushStandalone() { return (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true; }
+  function pushIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); }
+  function pushWant() { return "Notification" in window && Notification.permission === "granted" && LS.get("fa_push", 1) !== 0; }
+  function pushKey() { var p = "=".repeat((4 - PK.length % 4) % 4), r = atob((PK + p).replace(/-/g, "+").replace(/_/g, "/")), o = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) o[i] = r.charCodeAt(i); return o; }
+  function pushSameKey(sub) { try { var a = new Uint8Array(sub.options.applicationServerKey), b = pushKey(); if (a.length !== b.length) return false; for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false; return true; } catch (e) { return true; } }
+  function pushSub(create) {
+    return navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (sub) {
+        if (sub && !pushSameKey(sub)) return sub.unsubscribe().then(function () { return null; }); // VAPID কী বদলেছে → নতুন
+        return sub;
+      }).then(function (sub) { return sub || (create ? reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushKey() }) : null); });
+    });
+  }
+  function pushSave(sub) {
+    if (!CUR || !sub) return Promise.resolve(false);
+    var k = (sub.toJSON && sub.toJSON().keys) || {};
+    return rpc("fa_push_save", { p_endpoint: sub.endpoint, p_p256dh: k.p256dh, p_auth: k.auth, p_session: +CUR.s, p_nick: CUR.n || "", p_voter: vid() }).then(function (r) { if (r !== 1) PWHY = "সার্ভার কোড " + r + ({ 0: " (চ্যাট বন্ধ)", "-1": " (ভুল তথ্য)", "-3": " (ব্যান)", "-4": " (বেশি অনুরোধ)", "-6": " (পাসওয়ার্ড-চ্যাটে ঢোকেননি)" }[r] || ""); return r === 1; }).catch(function (e) { PWHY = "সেভ: " + String(e && e.message || e).slice(0, 90); return false; });
+  }
+  // চ্যাটে ঢুকলে/অনুমতি পেলে: অনুমতি আছে ও ইউজার অফ করেননি → সাবস্ক্রাইব + সার্ভারে সেভ (এখনকার সেশনসহ)
+  function pushSync() { if (!pushOK() || !pushWant() || !CUR) return Promise.resolve(false); PWHY = ""; return pushSub(true).then(pushSave).catch(function (e) { PWHY = "সাবস্ক্রাইব: " + String(e && (e.name + " " + e.message) || e).slice(0, 110); return false; }); }
+  // বের হলে/লগআউটে: শুধু সার্ভারের সারি মোছে (ব্রাউজারের সাবস্ক্রিপশন থাকে; আবার ঢুকলে সিঙ্ক হয়)
+  function pushDrop(full) {
+    if (!pushOK()) return;
+    pushSub(false).then(function (sub) {
+      if (!sub) return;
+      return rpc("fa_push_delete", { p_endpoint: sub.endpoint, p_voter: vid() }).catch(function () {}).then(function () { if (full) return sub.unsubscribe(); });
+    }).catch(function () {});
+  }
+  function pushToggle() {
+    if (!PK) return toast("পুশ এখনো সেটআপ হয়নি (মালিকের কাজ বাকি)।");
+    if (!pushOK()) return toast(pushIOS() && !pushStandalone() ? "iPhone-এ পুশ শুধু হোম স্ক্রীনে সেভ করা অ্যাপে চলে (iOS 16.4+)। আগে \"📲 হোম স্ক্রীনে সেভ করুন\" করে অ্যাপ থেকে খুলুন।" : "এই ব্রাউজারে পুশ চলে না।");
+    if (Notification.permission === "denied") return toast("ব্রাউজারে নোটিফিকেশন ব্লক করা — সাইটের সেটিং থেকে অনুমতি দিন।");
+    if (pushWant()) { LS.set("fa_push", 0); pushDrop(true); return toast("🔕 পুশ বন্ধ করা হয়েছে।"); }
+    LS.set("fa_push", 1);
+    var ask = Notification.permission === "granted" ? Promise.resolve("granted") : new Promise(function (res) { var p = Notification.requestPermission(res); if (p && p.then) p.then(res); });
+    ask.then(function (r) {
+      if (r !== "granted") return toast("অনুমতি দেওয়া হয়নি — পুশ চালু হয়নি।");
+      return pushSync().then(function (ok) { toast(ok ? "🔔 পুশ চালু হয়েছে।" : "পুশ চালু করা যায়নি" + (PWHY ? " — কারণ: " + PWHY : " — একটু পরে আবার চেষ্টা করুন।")); });
+    }).catch(function () { toast("পুশ চালু করা যায়নি।"); });
+  }
+  function pushLab() { if (!PK) return ""; if (pushOK() && Notification.permission === "denied") return "🚫 পুশ: ব্রাউজারে ব্লক করা"; return pushOK() && pushWant() ? "🔔 পুশ: চালু (বন্ধ করুন)" : "🔕 পুশ: বন্ধ (চালু করুন)"; }
+  try { if (navigator.permissions && navigator.permissions.query) navigator.permissions.query({ name: "notifications" }).then(function (p) { p.onchange = function () { if (CUR && $("#acM")) pushSync(); }; }).catch(function () {}); } catch (e) {}
   function close() { unjoin(); leaveRoom(); rtStop(); clearInterval(iv); iv = null; clearInterval(LV); clearInterval(RST); RST = null; MINZ = false; pill(); var e = $("#acx"); if (e) e.remove(); }
   function head(t, sub, back, right, cls) { return '<div class="ah"><button class="ab" id="acB" type="button" aria-label="পেছনে">' + (back ? "←" : "✕") + '</button><b' + (cls ? ' class="' + cls + '"' : "") + ">" + t + (sub ? "<small>" + sub + "</small>" : "") + "</b>" + (right || "") + "</div>"; }
 
@@ -260,7 +328,7 @@
     else if (m.kind === "audio" && u) h += '<div class="fc" data-fv><span style="font-size:26px">🎵</span><span>অডিও<small>' + (m.file_size ? sz(m.file_size) : "") + "</small></span></div>";
     else if (m.kind === "file" && u) h += '<div class="fc" data-fv><span style="font-size:26px">📄</span><span>' + esc(m.file_name || "ফাইল") + "<small>" + (m.file_size ? sz(m.file_size) : "") + "</small></span></div>";
     if (m.file_expired && !u) h += '<div style="opacity:.65;font-size:13px">⌛ ফাইলের মেয়াদ শেষ (' + esc(m.file_name || "ফাইল") + ")</div>";
-    return h + (m.body ? (h ? '<div style="margin-top:4px">' : "<div>") + (hd ? '<div class="rsh">⛔ RESTRICTED — আপত্তিকর লেখা লুকানো হয়েছে</div><div class="rsc">⚠️ কমিউনিটি ওয়ার্নিং: এই ইউজার আপত্তিকর শব্দ ব্যবহার করেছে।</div>' : fmt(m.body)) + "</div>" : "");
+    return h + (m.body ? (h ? '<div style="margin-top:4px">' : "<div>") + (hd ? '<div class="rsl"><span class="rsT">⛔ Restricted</span>' + (ADM ? '<button type="button" class="rsob" data-ro="' + m.id + '" title="আসল লেখা দেখুন (শুধু অ্যাডমিন)" aria-label="আসল লেখা দেখুন">' + (OPO[m.id] ? "🙈" : "👁") + "</button>" : "") + "</div><div class=\"rsn\">এই লেখা আপত্তিকর ছিল</div>" + (ADM ? '<div class="rso"' + (OPO[m.id] ? "" : " hidden") + ">" + fmt(m.body) + "</div>" : "") : fmt(m.body)) + "</div>" : "");
   }
   // ---------- লিংক, @উল্লেখ, তারিখ, শব্দ, নোটিশ (২০২৬-১০-২৩) ----------
   var DUPM = {};
@@ -281,18 +349,21 @@
   }
   function mentionsMe(m) { return !!(m && m.body && CUR && (String(m.body).match(/@[^\s@<,.;:!?]{1,24}/g) || []).indexOf(mkey(CUR.n)) >= 0); }
   function dlab(t) { var d = new Date(t), n = new Date(), y = new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1); if (d.toDateString() === n.toDateString()) return "আজ"; if (d.toDateString() === y.toDateString()) return "গতকাল"; return bd(d.getDate()) + " " + MON[d.getMonth()] + (d.getFullYear() !== n.getFullYear() ? " " + bd(d.getFullYear()) : ""); }
-  var SND = { on: LS.get("fa_snd", 1) !== 0, ctx: null, t: 0, n: 0, title: "" };
+  var SND = { on: LS.get("fa_snd", 0) === 1, /* part126: নতুন ইউজারের জন্য ডিফল্ট বন্ধ */ ctx: null, t: 0, n: 0, title: "" };
+  var SNDADM = false; // এডমিন মাস্টার সুইচ (ডিফল্ট বন্ধ): mc2_ac_cfg.sound = true হলেই চ্যাটের শব্দ বাজে
+  function loadSndCfg() { try { api("mc2_ac_cfg?select=value&key=eq.sound").then(function (r) { SNDADM = !!(r && r[0] && r[0].value === true); }).catch(function () {}); } catch (e) {} }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) loadSndCfg(); });
   function sndUnlock() { try { if (!SND.ctx) { var A = window.AudioContext || window.webkitAudioContext; if (A) SND.ctx = new A(); } if (SND.ctx && SND.ctx.state === "suspended") SND.ctx.resume(); } catch (e) {} }
   ["pointerdown", "keydown", "touchend"].forEach(function (ev) { document.addEventListener(ev, sndUnlock, { passive: true }); });
   function ding(soft) { // part63: soft=1 → চ্যাট সামনে খোলা (নরম, ভাইব্রেশন নেই); নইলে ব্যাকগ্রাউন্ড/মিনিমাইজ (পুরো শব্দ + ভাইব্রেশন)
-    if (!SND.on) return; var now = Date.now(); if (now < (SND.mu || 0)) return; /* নিজে পাঠানোর ঠিক পরে ডিং নয় */ if (now - SND.t < 2500) return; SND.t = now;
-    if (!soft) { try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) {} }
-    if (!SND.ctx || SND.ctx.state !== "running") return;
+    var now = Date.now(); if (now < (SND.mu || 0)) return; /* নিজে পাঠানোর ঠিক পরে ডিং নয় */ if (now - SND.t < 2500) return; SND.t = now;
+    if (!soft) { try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) {} } /* part127: শব্দ বন্ধ থাকলেও ভাইব্রেশন */
+    if (!SND.on || !SNDADM) return; if (!SND.ctx || SND.ctx.state !== "running") return;
     try { var c = SND.ctx, o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime; o.type = "sine"; o.frequency.setValueAtTime(880, t0); o.frequency.setValueAtTime(1175, t0 + 0.12); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(soft ? 0.14 : 0.25, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.4); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + 0.42); } catch (e) {}
   }
   var TYS = {}; // part63: কে কখন শেষ টাইপ-শব্দ করিয়েছে
   function tick() { // কেউ টাইপ শুরু করলে ছোট নরম "টুক"
-    if (!SND.on || !SND.ctx || SND.ctx.state !== "running") return;
+    if (!SND.on || !SNDADM || !SND.ctx || SND.ctx.state !== "running") return;
     try { var c = SND.ctx, o = c.createOscillator(), g = c.createGain(), t0 = c.currentTime; o.type = "sine"; o.frequency.setValueAtTime(660, t0); o.frequency.exponentialRampToValueAtTime(520, t0 + 0.07); g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.09, t0 + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09); o.connect(g); g.connect(c.destination); o.start(t0); o.stop(t0 + 0.1); } catch (e) {}
   }
   function bump(n) { if (!SND.title) SND.title = document.title; SND.n += n; document.title = "(" + bd(SND.n) + ") নতুন বার্তা"; }
@@ -306,12 +377,12 @@
   function avs(n) { var k = String(n || "?").toLowerCase(), h = 0, i; for (i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) % 360; return ' style="background:linear-gradient(135deg,hsl(' + h + ',72%,58%),hsl(' + ((h + 40) % 360) + ',78%,44%));box-shadow:0 0 0 2px var(--bg,#fff),0 0 0 3.5px hsl(' + h + ',72%,55%)"'; }
   function bub(m, prev) {
     var x0 = MET[m.id]; if (x0 && x0.ed && x0.b != null && !x0.d && !m.deleted) m = Object.assign({}, m, { body: x0.b });
-    var x = MET[m.id] || {}, own = !!x.o, nick = x.n || m.nick, nm = "", rk = (x.d || m.deleted) ? "" : rsKey(x, own), hd = !!(RSON !== false && m.body && !(x.d || m.deleted) && badText(m.body));
-    if (!own && (!prev || prev.own || prev.nick !== nick)) nm = '<div class="nm uc" data-uc="' + esc(x.u || "") + '">' + (x.a ? '<span class="dot on"></span> ' : "") + esc(dupName(nick, x.u)) + (rk ? ' <span class="rsp" data-rs="' + esc(rk) + '">⛔ Restricted</span>' : "") + "</div>";
+    var x = MET[m.id] || {}, own = !!x.o, nick = x.n || m.nick, nm = "", rk = (x.d || m.deleted) ? "" : rsKey(x, own, m.id), uk = (x.d || m.deleted) ? "" : rsUKey(x, own), ak = rk || uk, hd = !!(RSON !== false && m.body && !(x.d || m.deleted) && (badText(m.body) || HM[m.id] || rsTgt(x, own, m.id)));
+    if (!own && (!prev || prev.own || prev.nick !== nick)) nm = '<div class="nm uc" data-uc="' + esc(x.u || "") + '">' + (x.a ? '<span class="dot on"></span> ' : "") + esc(dupName(nick, x.u)) + (ak ? ' <span class="rsp" data-rs="' + esc(ak) + '">⛔ Restricted</span>' : "") + "</div>";
     var rx = "", r = x.r || {}, ks = Object.keys(r).filter(function (e) { return r[e] > 0; }).sort(function (a, b) { return r[b] - r[a]; }), tot = ks.reduce(function (n, e) { return n + r[e]; }, 0);
     if (tot) rx = '<button type="button" data-rxs aria-label="কে কী রিঅ্যাকশন দিয়েছে দেখুন"' + (x.m ? ' class="on"' : "") + ">" + ks.slice(0, 3).map(esc).join("") + (tot > 1 ? "<i>" + bd(tot) + "</i>" : "") + "</button>";
-    return '<div class="r' + (own ? " mine" : "") + (rk ? " rs" : "") + (SEL === m.id ? " sel" : "") + '" data-id="' + m.id + '">' + (own ? "" : (rk ? '<span class="avw">' : "") + '<span class="av uc" data-uc="' + esc(x.u || "") + '"' + avs(nick) + '>' + esc(Array.from(nick)[0] || "?") + "</span>" + (rk ? '<button type="button" class="avs" data-rs="' + esc(rk) + '" aria-label="Restricted — ওয়ার্নিং দেখুন">Restricted</button><button type="button" class="avx" data-rs="' + esc(rk) + '" aria-label="Restricted — ওয়ার্নিং দেখুন">✕</button></span>' : "")) +
-      '<div class="col">' + (m.reply_to && !(x.d || m.deleted) ? "" : nm) + (rk ? '<div class="rst" data-rs="' + esc(rk) + '">' + "⛔ RESTRICTED<small>এই মেসেজ আপত্তিকর ছিল</small>" + "</div>" : "") + (x.d || m.deleted ? "" : rqx(m, own, nick)) + '<div class="bw">' + (x.d || m.deleted ? '<div class="bb dl">' + ((x.mr != null ? x.mr : m.mod_removed) ? "🛡️ অ্যাডমিন এই বার্তাটি সরিয়েছেন" + (function () { var nt = String(x.mn != null ? x.mn : m.mod_note || "").trim(); return nt ? '<span class="adn">📝 অ্যাডমিন নোট: ' + esc(nt) + "</span>" : ""; })() : "🚫 বার্তা মুছে ফেলা হয়েছে") + "</div>" : '<div class="bb' + (!m.body && !m.reply_to && m.file_path && (m.kind === "image" || m.kind === "video") ? " mm" : "") + (hd ? " rsbad" : emc(m)) + (mentionsMe(m) && !own ? " mnm" : "") + '" data-bb>' + body(m, hd) + '<span class="tm">' + (x.ed ? '<u class="edl" data-eh="' + m.id + '" role="button" style="cursor:pointer;text-decoration:underline dotted">✎ Edited</u> · ' : "") + tm(m.created_at) + "</span></div>") +
+    return '<div class="r' + (own ? " mine" : "") + (ak ? " rs" : "") + (SEL === m.id ? " sel" : "") + '" data-id="' + m.id + '">' + (own ? "" : (ak ? '<span class="avw">' : "") + '<span class="av uc" data-uc="' + esc(x.u || "") + '"' + avs(nick) + '>' + esc(Array.from(nick)[0] || "?") + "</span>" + (ak ? '<button type="button" class="avs" data-rs="' + esc(ak) + '" aria-label="Restricted — ওয়ার্নিং দেখুন">Restricted</button><button type="button" class="avx" data-rs="' + esc(ak) + '" aria-label="Restricted — ওয়ার্নিং দেখুন">✕</button></span>' : "")) +
+      '<div class="col">' + (m.reply_to && !(x.d || m.deleted) ? "" : nm) + (x.d || m.deleted ? "" : rqx(m, own, nick)) + '<div class="bw">' + (x.d || m.deleted ? '<div class="bb dl">' + ((x.mr != null ? x.mr : m.mod_removed) ? "🛡️ অ্যাডমিন এই বার্তাটি সরিয়েছেন" + (function () { var nt = String(x.mn != null ? x.mn : m.mod_note || "").trim(); return nt ? '<span class="adn">📝 অ্যাডমিন নোট: ' + esc(nt) + "</span>" : ""; })() : "🚫 বার্তা মুছে ফেলা হয়েছে") + "</div>" : '<div class="bb' + (!m.body && !m.reply_to && m.file_path && (m.kind === "image" || m.kind === "video") ? " mm" : "") + (hd ? " rsbad" : emc(m)) + (mentionsMe(m) && !own ? " mnm" : "") + '" data-bb>' + body(m, hd) + '<span class="tm">' + (x.ed ? '<u class="edl" data-eh="' + m.id + '" role="button" style="cursor:pointer;text-decoration:underline dotted">✎ Edited</u> · ' : "") + tm(m.created_at) + "</span></div>") +
       (rx ? '<div class="rxs">' + rx + "</div>" : "") + "</div>" + (own && !(x.d || m.deleted) ? '<button class="sn" type="button" data-seen>' + (x.s > 0 ? "👁 দেখেছে " + bd(x.s) : "✓ পাঠানো হয়েছে") + "</button>" : "") + '</div></div>';
   }
   // বদলানো অংশ খুঁজে শুধু সেটুকু বসায়: শুরু ও শেষ থেকে যেগুলো হুবহু মেলে সেগুলো যেমন আছে তেমন থাকে (ছবি আবার ডিকোড হয় না, লেআউট নড়ে না)
@@ -337,7 +408,7 @@
     if (!force && TCH && Date.now() - TCH < 8000) return; // আঙুল ঠেকানো অবস্থায় আঁকা বন্ধ (সোয়াইপ-রিপ্লাই ভাঙত)
     if ([].some.call(M.querySelectorAll("video,audio"), function (e) { return !e.paused; })) return; // চলার সময় আঁকা বন্ধ
     DUPM = {}; MSGS.forEach(function (m) { var x = MET[m.id] || {}; if (!x.u) return; var k = String(x.n || m.nick).toLowerCase(), a = DUPM[k] || (DUPM[k] = []); if (a.indexOf(x.u) < 0) a.push(x.u); });
-    SIG = sig; var near = M.scrollHeight - M.scrollTop - M.clientHeight < 90, ph = M.scrollHeight, pt = M.scrollTop, prev = null, h = MORE && MSGS.length ? '<button class="old" id="acHi" type="button">⬆ আগের বার্তা দেখুন</button>' : "";
+    SIG = sig; var gap0 = M.scrollHeight - M.scrollTop - M.clientHeight, near = gap0 < 160, ph = M.scrollHeight, pt = M.scrollTop, prev = null, h = MORE && MSGS.length ? '<button class="old" id="acHi" type="button">⬆ আগের বার্তা দেখুন</button>' : "";
     var items = MSGS.map(function (m) { return { t: Date.parse(m.created_at), m: m }; }).concat(EVS.map(function (e) { return { t: e.t, e: e }; })).concat(shotItems()).sort(function (a, b) { return a.t - b.t; });
     var IN = {}, LD = "", sep = function (t) { var k = new Date(t).toDateString(); if (k === LD) return ""; LD = k; return '<div class="dt">' + dlab(t) + "</div>"; };
     items.forEach(function (it) {
@@ -349,7 +420,9 @@
     if (!h) M.innerHTML = '<div class="em">এখনো কেউ কিছু লেখেনি।<br>প্রথম বার্তাটা আপনিই পাঠান 👋</div>';
     else if (!M.firstChild) M.innerHTML = h;
     else patchList(M, h);
-    if (mode === "old") M.scrollTop = M.scrollHeight - ph + pt; else if (near || force === "bottom") M.scrollTop = M.scrollHeight;
+    if (mode === "old") M.scrollTop = M.scrollHeight - ph + pt; else if (near || force === "bottom") stickBottom(M);
+    else if (mode === "new" && NEWN > 0) { if (gap0 <= 5 * M.clientHeight) stickBottom(M); /* part126: ২ পেইজের ভেতরে থাকলে দৌড়ে নামে */ else { UNSEEN += NEWN; jdUp(); } /* অনেক ওপরে পুরোনো মেসেজ পড়ছে — টানব না, ⬇-তে সংখ্যা */ }
+    if (mode === "new") NEWN = 0;
     applyLock();
   }
   // ---------- মেসেঞ্জারের মতো: ⬇ ভাসমান বাটন + ওপরে স্ক্রল করলে আগের বার্তা নিজে আসা (দেরি হলে ক্লিক করে আনা) ----------
@@ -369,14 +442,70 @@
     jb = document.createElement("button"); jb.id = "acJd"; jb.className = "jd"; jb.type = "button"; jb.hidden = true; jb.textContent = "⬇"; jb.setAttribute("aria-label", "সর্বশেষ বার্তায় যান"); X.appendChild(jb);
     var upd = function () {
       if (!jb.isConnected) return; var gap = M.scrollHeight - M.scrollTop - M.clientHeight;
-      jb.hidden = gap < Math.max(300, M.clientHeight); // এক পেজ ওপরে গেলে দেখা যায়, নিচে এলে চলে যায়
+      if (gap < 90 && UNSEEN) UNSEEN = 0; jdUp(); jb.hidden = gap < Math.max(300, M.clientHeight); // এক পেজ ওপরে গেলে দেখা যায়, নিচে এলে চলে যায়
       if (!jb.hidden) { var r = M.getBoundingClientRect(), xr = X.getBoundingClientRect(); jb.style.bottom = Math.max(8, xr.bottom - r.bottom + 64) + "px"; }
       if (M.scrollTop < 120 && MORE && MSGS.length && !OLDBUSY && M.scrollHeight > M.clientHeight) loadOld(false); // ওপরে পৌঁছালে আগের বার্তা নিজে আসে
     };
-    M.addEventListener("scroll", upd, { passive: true }); window.addEventListener("resize", upd);
+    M.addEventListener("scroll", upd, { passive: true }); window.addEventListener("resize", upd); if (!M._stkL) { M._stkL = 1; var fixB = function () { if (M._stk && !TCH && !M._rd) M.scrollTop = M.scrollHeight; }; M.addEventListener("load", fixB, true); M.addEventListener("loadedmetadata", fixB, true); M.addEventListener("touchstart", function () { M._stk = 0; }, { passive: true }); M.addEventListener("wheel", function () { M._stk = 0; }, { passive: true }); } // ছবি/ভিডিও পরে লোড হয়ে উচ্চতা বাড়ালেও নিচেই থাকে
     jb.onclick = function () { M.scrollTo({ top: M.scrollHeight, behavior: "smooth" }); };
   }
+
+  // ---------- part126: নতুন মেসেজে দৌড়ে নামা, ⬇-তে সংখ্যা, উড়ন্ত ❤️ ----------
+  var SEENC = {};
+  function openSeen(id) { // সাথে সাথে শিট খোলে ("লোড হচ্ছে"), ডেটা এলে ভরে; আগের লিস্ট থাকলে সেটাই আগে দেখায়
+    var Z = document.createElement("div"); Z.className = "sh0";
+    function paint(L, st) { Z.innerHTML = '<div class="sh"><b>' + "\ud83d\udc41 \u09af\u09be\u09b0\u09be \u09a6\u09c7\u0996\u09c7\u099b\u09c7" + (L ? " (" + bd(L.length) + ")" : "") + "</b>" + (L ? (L.length ? L.map(function (n) { return "<div>\u2022 " + esc(n) + "</div>"; }).join("") : "<div>" + "\u098f\u0996\u09a8\u09cb \u0995\u09c7\u0989 \u09a6\u09c7\u0996\u09c7\u09a8\u09bf\u0964" + "</div>") : "<div>" + st + "</div>") + '<button type="button">' + "\u09ac\u09a8\u09cd\u09a7 \u0995\u09b0\u09c1\u09a8" + "</button></div>"; }
+    Z.onclick = function () { Z.remove(); };
+    paint(SEENC[id] || null, "\u09b2\u09cb\u09a1 \u09b9\u099a\u09cd\u099b\u09c7\u2026"); $("#acx").appendChild(Z);
+    rpc("mc2_ac_seenlist", { p_msg: id }).then(function (L) { SEENC[id] = L; if (Z.isConnected) paint(L); }).catch(function () { if (Z.isConnected && !SEENC[id]) paint(null, "\u09b2\u09cb\u09a1 \u09b9\u09af\u09bc\u09a8\u09bf \u2014 \u0986\u09ac\u09be\u09b0 \u099a\u09c7\u09b7\u09cd\u099f\u09be \u0995\u09b0\u09c1\u09a8"); });
+  }
+  function stickBottom(M) { // একটাই লুপ: নতুন মেসেজে সময় নতুন করে শুরু; আঙুল/স্ক্রল দিলে ছেড়ে দেয়
+    if (!M) return; M.scrollTop = M.scrollHeight; M._stk = Date.now(); M._t0 = performance.now();
+    if (!M._stkI) { M._stkI = 1; var c = function () { M._stk = 0; }; M.addEventListener("touchstart", c, { passive: true }); M.addEventListener("wheel", c, { passive: true }); }
+    if (M._stkR) return; M._stkR = 1;
+    (function f(now) { if (!M.isConnected || !M._stk || now - M._t0 > 1500) { M._stkR = 0; return; } M.scrollTop = M.scrollHeight; requestAnimationFrame(f); })(M._t0);
+  }
+  function runDown(M) {
+    if (M._rd) return; M._rd = 1; var s0 = M.scrollTop, t0 = 0, stop = false;
+    var cancel = function () { stop = true; };
+    M.addEventListener("touchstart", cancel, { passive: true }); M.addEventListener("wheel", cancel, { passive: true });
+    var end = function () { M._rd = 0; M.removeEventListener("touchstart", cancel); M.removeEventListener("wheel", cancel); };
+    (function f(now) {
+      if (stop || !M.isConnected) return end(); if (!t0) t0 = now;
+      var p = Math.min(1, (now - t0) / 380), e = 1 - Math.pow(1 - p, 3), tg = M.scrollHeight - M.clientHeight;
+      M.scrollTop = s0 + (tg - s0) * e;
+      if (p < 1) requestAnimationFrame(f); else { M.scrollTop = M.scrollHeight; M._stk = Date.now(); end(); }
+    })(performance.now());
+  }
+  function jdUp() {
+    var jb = $("#acJd"); if (!jb) return; var n = UNSEEN > 0;
+    jb.textContent = n ? "⬇ " + bd(UNSEEN > 99 ? "99+" : UNSEEN) : "⬇";
+    jb.style.width = n ? "auto" : ""; jb.style.minWidth = n ? "38px" : ""; jb.style.padding = n ? "0 11px" : ""; jb.style.borderRadius = n ? "19px" : ""; jb.style.fontWeight = n ? "700" : ""; jb.style.fontSize = n ? "15px" : "";
+  }
+  var LOVES = { "❤️": 1, "❤": 1, "♥️": 1, "♥": 1 };
+  function loveN(x) { var r = (x && x.r) || {}, n = 0; for (var k in LOVES) n += r[k] | 0; return n; }
+  function loveFly(id) {
+    try {
+      if (document.hidden || (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+      var M = $("#acM"); if (!M) return; var el = M.querySelector('[data-id="' + id + '"] .bb') || M.querySelector('[data-id="' + id + '"]'); if (!el) return;
+      var r = el.getBoundingClientRect(), mr = M.getBoundingClientRect(); if (!r.height || r.bottom < mr.top || r.top > mr.bottom) return;
+      if (!document.getElementById("acLvS")) { var st = document.createElement("style"); st.id = "acLvS"; st.textContent = "@keyframes acLv{0%{opacity:0;transform:translate(0,0) scale(.4)}12%{opacity:1}100%{opacity:0;transform:translate(var(--dx),-170px) scale(var(--sc))}}.acLv{position:fixed;pointer-events:none;z-index:2147483000;font-size:22px;line-height:1;animation:acLv var(--du) ease-out var(--dl) forwards;opacity:0;will-change:transform,opacity}"; document.head.appendChild(st); }
+      for (var i = 0; i < 9; i++) {
+        var h = document.createElement("span"); h.className = "acLv"; h.textContent = "❤️";
+        h.style.left = (r.left + r.width * (0.15 + Math.random() * 0.7)) + "px"; h.style.top = Math.min(r.bottom, mr.bottom) - 18 + "px";
+        h.style.setProperty("--dx", Math.round(Math.random() * 90 - 45) + "px"); h.style.setProperty("--sc", (0.9 + Math.random() * 0.9).toFixed(2));
+        h.style.setProperty("--du", (1.4 + Math.random() * 0.8).toFixed(2) + "s"); h.style.setProperty("--dl", (Math.random() * 0.35).toFixed(2) + "s");
+        h.addEventListener("animationend", function () { this.remove(); }); document.body.appendChild(h); (function (q) { setTimeout(function () { q.remove(); }, 3500); })(h);
+      }
+    } catch (e) {}
+  }
+  function loveCheck() { // মেটা আসার পর: কোন মেসেজে ❤️ বেড়েছে খুঁজে উড়িয়ে দেয়
+    var cur = {}, id; for (id in MET) cur[id] = loveN(MET[id]);
+    if (LOVEC) { var mx = 0, fire = []; for (id in LOVEC) mx = Math.max(mx, +id); for (id in cur) { if (id in LOVEC ? cur[id] > LOVEC[id] : (+id > mx && cur[id] > 0)) fire.push(id); } fire.slice(-3).forEach(function (q, i) { setTimeout(function () { loveFly(q); }, 120 + i * 250); }); }
+    LOVEC = cur;
+  }
   function load(mode) {
+    if (mode === "first") loadSndCfg();
     var q = "mc2_ac_messages?select=id,nick,body,created_at,reply_to,reply_nick,reply_text,kind,file_path,file_name,file_size,file_mime,deleted" + (NOMR ? "" : ",mod_removed,file_expired" + (NOMN ? "" : ",mod_note")) + "&session_id=eq." + CUR.s, first = MSGS.length ? MSGS[0].id : 0, last = MSGS.length ? MSGS[MSGS.length - 1].id : 0;
     q += mode === "new" ? "&id=gt." + last + "&order=id.asc&limit=100" : mode === "old" ? "&id=lt." + first + "&order=id.desc&limit=40" : "&order=id.desc&limit=40";
     return api(q).then(function (L) {
@@ -385,8 +514,8 @@
       // স্পিড: নিচে থাকলে শুধু শেষ ১২০টা বার্তা রাখি (বাকিগুলো "⬆ আগের বার্তা"-য় আসবে)
       if (mode === "new" && MSGS.length > 150) { var Mq = $("#acM"); if (Mq && Mq.scrollHeight - Mq.scrollTop - Mq.clientHeight < 90) { MSGS = MSGS.slice(-120); MORE = true; } }
       // নতুন মেসেজ আগে সঙ্গে সঙ্গে আঁকে (রিঅ্যাকশন/মেটা পরে বসে); নিজের পাঠানো মেসেজ SENT দিয়ে আগেই "আমার" চেনা যায়
-      if (mode === "new" && L.length) { var nw = L.filter(function (m) { return !SENT[m.id] && !(MET[m.id] && MET[m.id].o); }); if (nw.length) { ding(!(document.hidden || MINZ)); if (document.hidden) bump(nw.length); } /* part63: চ্যাট সামনে খোলা থাকলেও নতুন বার্তায় নরম শব্দ */ L.forEach(function (m) { if (!MET[m.id]) MET[m.id] = SENT[m.id] ? { o: 1 } : {}; }); if (L.some(function (m) { return m.body && badText(m.body); })) { setTimeout(rsLoad, 800); setTimeout(rsLoad, 3500); } render(false, mode); pill(); }
-      return rpc("mc2_ac_meta", { p_session: +CUR.s, p_min: MSGS.length ? MSGS[0].id : 0, p_voter: vid() }).then(function (r) { UP = r.up !== false; ONL = r.on || 0; ME = r.me || { s: "ok", w: [] }; applyMe(); subt(); MET = {}; (r.rows || []).forEach(function (x) { MET[x.id] = x; }); if (r.rows) { var cap = r.rows.length >= 500, lo = r.rows.length ? Math.min.apply(null, r.rows.map(function (x) { return x.id; })) : 0; MSGS = MSGS.filter(function (m) { return (cap && m.id < lo) || !!MET[m.id]; }); } }).catch(function () {});
+      if (mode === "new" && L.length) { var nw = L.filter(function (m) { return !SENT[m.id] && !(MET[m.id] && MET[m.id].o); }); if (nw.length) { NEWN = nw.length; ding(!(document.hidden || MINZ)); if (document.hidden) bump(nw.length); try { if (window.FAPwa) FAPwa.nm(nw.length); } catch (z) {} } /* part63: চ্যাট সামনে খোলা থাকলেও নতুন বার্তায় নরম শব্দ */ L.forEach(function (m) { if (!MET[m.id]) MET[m.id] = SENT[m.id] ? { o: 1 } : {}; }); if (L.some(function (m) { return m.body && badText(m.body); })) { setTimeout(rsLoad, 800); setTimeout(rsLoad, 3500); } render(false, mode); pill(); }
+      return rpc("mc2_ac_meta", { p_session: +CUR.s, p_min: MSGS.length ? MSGS[0].id : 0, p_voter: vid() }).then(function (r) { UP = r.up !== false; ONL = r.on || 0; ME = r.me || { s: "ok", w: [] }; applyMe(); subt(); MET = {}; (r.rows || []).forEach(function (x) { MET[x.id] = x; }); loveCheck(); if (r.rows) { var cap = r.rows.length >= 500, lo = r.rows.length ? Math.min.apply(null, r.rows.map(function (x) { return x.id; })) : 0; MSGS = MSGS.filter(function (m) { return (cap && m.id < lo) || !!MET[m.id]; }); } }).catch(function () {});
     }).then(function () {
       render(mode === "first" ? "bottom" : mode === "old", mode); pill();
       var l = MSGS.length ? MSGS[MSGS.length - 1].id : 0; if (l > LASTSEEN && !document.hidden && !MINZ) { LASTSEEN = l; rpc("mc2_ac_seen", { p_session: +CUR.s, p_voter: vid(), p_nick: CUR.n, p_last: l }).catch(function () {}); }
@@ -457,7 +586,7 @@
       else if (d === "adm") admMenu(id);
       else if (d === "mention") { var iN = $("#acI"); if (iN && !iN.disabled) { iN.value += (iN.value && !/\s$/.test(iN.value) ? " " : "") + mkey(x.n || m.nick) + " "; growI(); iN.focus(); } }
       else if (d === "copy") { try { navigator.clipboard.writeText(x.ed && x.b != null ? x.b : m.body); toast("কপি হয়েছে।"); } catch (er) { toast("কপি হয়নি।"); } }
-      else if (d === "seen") rpc("mc2_ac_seenlist", { p_msg: id }).then(function (L) { var Z = document.createElement("div"); Z.className = "sh0"; Z.innerHTML = '<div class="sh"><b>👁 যারা দেখেছে (' + bd(L.length) + ")</b>" + (L.length ? L.map(function (n) { return "<div>• " + esc(n) + "</div>"; }).join("") : "<div>এখনো কেউ দেখেনি।</div>") + '<button type="button">বন্ধ করুন</button></div>'; Z.onclick = function () { Z.remove(); }; $("#acx").appendChild(Z); }).catch(function () { toast("লোড হয়নি।"); });
+      else if (d === "seen") openSeen(id);
       else if (d === "edit") editMsg(id, m, x);
       else if (d === "unsend") { if (confirm("সবার জন্য মুছে ফেলবেন?")) rpc("mc2_ac_unsend", { p_msg: id, p_voter: vid() }).then(function (ok) { toast(ok ? "সবার জন্য মুছে গেছে।" : "৫ মিনিট পেরিয়ে গেছে — এখন শুধু নিজের জন্য মোছা যাবে।"); if (ok) rtNudge(); load("new"); }).catch(function () { toast("মোছা যায়নি।"); }); }
       else if (d === "me") { var k = LS.get("mc2_ac_hide", []); k.push(id); LS.set("mc2_ac_hide", k.slice(-1000)); render(true); }
@@ -476,7 +605,7 @@
     if (!EMO || !m.body || m.reply_to || m.file_path) return ""; var t = String(m.body).replace(/\s+/g, ""); if (!t) return "";
     var k = t.match(EMO); if (!k || k.join("") !== t) return ""; return k.length === 1 ? " e1" : " e2";
   }
-  function pop(h) { var Z = document.createElement("div"); Z.className = "sh0"; Z.innerHTML = '<div class="sh">' + h + '<button type="button" data-x>বন্ধ করুন</button></div>'; Z.onclick = function (e) { if (e.target.closest("[data-uc]")) { var u = e.target.closest("[data-uc]").dataset.uc; Z.remove(); return card(u); } if (e.target === Z || e.target.closest("[data-x]")) Z.remove(); }; $("#acx").appendChild(Z); }
+  function pop(h) { var Z = document.createElement("div"); Z.className = "sh0"; Z.innerHTML = '<div class="sh">' + h + '<button type="button" data-x>বন্ধ করুন</button></div>'; Z.onclick = function (e) { if (e.target.closest("[data-uc]")) { var u = e.target.closest("[data-uc]").dataset.uc; Z.remove(); return card(u); } if (e.target === Z || e.target.closest("[data-x]")) Z.remove(); }; $("#acx").appendChild(Z); return Z; }
   // নাম ক্লিক: ইউজার কার্ড (শুধু নাম, আইডি, বিভাগ, সেশন, স্কোর, অনলাইন, Last Active; আইপি/ডিভাইস/ফোন অ্যাডমিন ছাড়া কেউ দেখে না)
   function card(u) {
     if (!u) return toast("এই ইউজারের তথ্য নেই।");
@@ -501,7 +630,32 @@
           + rw("📅 আজ পাঠিয়েছে", bd(c.today || 0) + "টি")
           + rw("📊 দৈনিক (৭ দিন)", c.days.map(function (x, i) { return dl(x.d, i) + ": " + bd(x.n) + "টি"; }).join("<br>"));
       }
-      pop('<div style="text-align:center;padding:6px"><span class="av"' + avs(c.n).replace('style="','style="width:56px;height:56px;font-size:24px;margin:0 auto 6px;') + '>' + esc(Array.from(c.n)[0] || "?") + '</span><b style="font-size:17px">' + esc(c.n) + '</b>' + (c.days ? '<div style="margin-top:6px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;font-size:13px;font-weight:700"><span style="padding:3px 10px;border-radius:999px;background:rgba(128,128,128,.16)">💬 মোট বার্তা ' + bd(c.msgs || 0) + '</span><span style="padding:3px 10px;border-radius:999px;background:' + ((c.rcnt || 0) > 0 || c.restricted ? "rgba(229,72,77,.18)" : "rgba(128,128,128,.16)") + '">⛔ রেস্ট্রিকশন ' + bd(c.rcnt || 0) + ' বার</span></div>' : "") + '</div><div class="ui"><b>ইউজার আইডি</b><span>' + esc(c.u) + '</span><b>বিভাগ</b><span>' + esc(c.dept || "—") + '</span><b>সেশন</b><span>' + esc(c.sess || "—") + '</span><b>স্কোর</b><span>' + (c.best != null ? bd(c.best) + " / ১০০০ (" + bd(c.plays) + " বার খেলেছে)" : "এখনো খেলেনি") + '</span><b>স্ট্যাটাস</b><span>' + (c.onl ? '<span class="dot on"></span> অনলাইন' : '<span class="dot"></span> অফলাইন') + '</span><b>Last Active</b><span>' + (c.onl ? "এখন" : ago(c.ls)) + '</span><b>এ পর্যন্ত মোট বার্তা</b><span>' + bd(c.msgs || 0) + 'টি</span>' + (ADM ? st : "") + ex + '</div>');
+      var UVo = ADM && Array.isArray(AL) ? ((AL.filter(function (x) { return x.uid === u; })[0] || {}).voter || "") : "";
+      var UZ = pop('<div style="text-align:center;padding:6px"><span class="av"' + avs(c.n).replace('style="','style="width:56px;height:56px;font-size:24px;margin:0 auto 6px;') + '>' + esc(Array.from(c.n)[0] || "?") + '</span><b style="font-size:17px">' + esc(c.n) + '</b>' + (c.days ? '<div style="margin-top:6px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;font-size:13px;font-weight:700"><span style="padding:3px 10px;border-radius:999px;background:rgba(128,128,128,.16)">💬 মোট বার্তা ' + bd(c.msgs || 0) + '</span><span style="padding:3px 10px;border-radius:999px;background:' + ((c.rcnt || 0) > 0 || c.restricted ? "rgba(229,72,77,.18)" : "rgba(128,128,128,.16)") + '">⛔ রেস্ট্রিকশন ' + bd(c.rcnt || 0) + ' বার</span></div>' : "") + '</div><div class="ui"><b>ইউজার আইডি</b><span>' + esc(c.u) + '</span><b>বিভাগ</b><span>' + esc(c.dept || "—") + '</span><b>সেশন</b><span>' + esc(c.sess || "—") + '</span><b>স্কোর</b><span>' + (c.best != null ? bd(c.best) + " / ১০০০ (" + bd(c.plays) + " বার খেলেছে)" : "এখনো খেলেনি") + '</span><b>স্ট্যাটাস</b><span>' + (c.onl ? '<span class="dot on"></span> অনলাইন' : '<span class="dot"></span> অফলাইন') + '</span><b>Last Active</b><span>' + (c.onl ? "এখন" : ago(c.ls)) + '</span><b>এ পর্যন্ত মোট বার্তা</b><span>' + bd(c.msgs || 0) + 'টি</span>' + (ADM ? st : "") + ex + '</div>' + (ADM ? '<button type="button" class="dg" data-ur="1" style="margin-top:8px">🛡️ শাস্তি / ব্যবস্থা (Restriction · ব্যান · লক · আইপি ব্যান)</button>' : ""));
+      if (ADM && UZ) { // part153: ইউজার-ইনফোতেই সব শাস্তি একটা ড্রপডাউনে + একই আইপির অন্য ইউজার; অ্যাডমিন প্যানেলের সাথে একই সার্ভার-তথ্য
+        var getV = function () { // ডিভাইস আইডি: সক্রিয় তালিকা থেকে; না থাকলে ওই ইউজারের কোনো বার্তা দিয়ে খুঁজি
+          if (UVo) return Promise.resolve(UVo);
+          var mid = 0; MSGS.some(function (q) { var qx = MET[q.id] || {}; if (qx.u === u) { mid = q.id; return true; } });
+          if (!mid) return Promise.resolve("");
+          return arpc("fa_admin_msg_target", { p_msg: mid }).then(function (T) { return T && T.voter || ""; }).catch(function () { return ""; });
+        };
+        getV().then(function (V0) { if (!V0) return; UVo = V0; arpc("fa_admin_ip_info", { p_voter: V0 }).then(function (I) {
+          var ui = UZ.querySelector(".ui"); if (!ui || !I || !I.ip) return;
+          var oth = (I.users || []).filter(function (q) { return q.voter !== V0; });
+          ui.insertAdjacentHTML("beforeend", "<b>🔒 আইপি</b><span>" + esc(I.ip) + ((I.bans || []).length ? ' <b style="color:#d93025">🌐 আইপি ব্যান চলছে</b>' : "") + "</span><b>🔒 এই আইপির অন্য ইউজার</b><span>" + (oth.length ? oth.map(function (q) { return '<span data-uc="' + esc(q.uid) + '" style="cursor:pointer;text-decoration:underline dotted">' + esc(q.nick || "বেনামি") + "</span>" + (q.st === "banned" ? " ⛔ব্যান" : q.st === "restricted" ? " ⚠️" : "") + ' <small style="opacity:.65">(' + ago(q.last) + ")</small>"; }).join("<br>") : "কেউ নেই") + "</span>");
+        }).catch(function () {});
+          arpc("fa_admin_same_device", { p_voter: V0 }).then(function (D) { // part154: একই ডিভাইসের সম্ভাব্য অন্য আইডি
+            var ui = UZ.querySelector(".ui"); if (!ui || !Array.isArray(D) || !D.length) return;
+            ui.insertAdjacentHTML("beforeend", "<b>📱 একই ডিভাইসের সম্ভাব্য অন্য আইডি</b><span>" + D.map(function (q) { return '<span data-uc="' + esc(q.uid) + '" style="cursor:pointer;text-decoration:underline dotted">' + esc(q.nick || "বেনামি") + "</span> " + (q.lv === "high" ? "<b>খুব সম্ভব</b>" : "সম্ভাব্য") + (q.st === "banned" ? " ⛔ব্যান" : q.st === "restricted" ? " ⚠️" : "") + ' <small style="opacity:.65">(' + (q.fp ? "ডিভাইস-ছাপ" : "") + (q.ua ? (q.fp ? " + " : "") + "ব্রাউজার" : "") + (q.ip ? " + আইপি" : "") + " মিলেছে · " + ago(q.last) + ")</small>"; }).join("<br>") + "</span>");
+          }).catch(function () {}); });
+        UZ.addEventListener("click", function (e) {
+          if (!e.target.closest("[data-ur]")) return;
+          getV().then(function (V) {
+            if (!V) return toast("এই ইউজারের ডিভাইস আইডি পাওয়া যায়নি — তার কোনো বার্তা চেপে 🛡️ অ্যাডমিন থেকে দিন।");
+            punish(V, u, c, function () { UZ.remove(); });
+          });
+        });
+      }
     }).catch(function () { toast("লোড হয়নি — SQL (supabase-userinfo.sql) চালানো আছে কি?"); });
   }
   function members() {
@@ -523,7 +677,7 @@
   // নামে ক্লিক বাবল + চ্যাটের নিচের অনলাইন স্ট্রিপ + অ্যাডমিনের 🔒 তালা-ফোল্ডার: bubble.js (SQL-20)
   function faMount() { try { if (window.faBub) window.faBub.mount({ root: $("#acx"), cur: function () { return CUR; }, rpc: rpc, arpc: arpc, vid: vid, adm: function () { return ADM; }, input: function () { return $("#acI"); } }); } catch (e) {} }
   function room() {
-    var R = root(); MSGS = []; MET = {}; REPLY = null; SIG = ""; SEL = 0; RXID = 0; if (RXOFF) { RXOFF(); RXOFF = null; } EVS = []; EVLAST = -1; SHL = []; SHLAST = 0; SHT = 0; TYP = 0; LB = false; clearInterval(LV); MORE = true; LASTSEEN = 0; BNK = "";
+    var R = root(); MSGS = []; MET = {}; UNSEEN = 0; NEWN = 0; LOVEC = null; REPLY = null; SIG = ""; SEL = 0; RXID = 0; if (RXOFF) { RXOFF(); RXOFF = null; } EVS = []; EVLAST = -1; SHL = []; SHLAST = 0; SHT = 0; TYP = 0; LB = false; clearInterval(LV); MORE = true; LASTSEEN = 0; BNK = "";
     R.innerHTML = '<div class="ah ah2"><div class="gl"><span class="gn" id="acGn">' + (CUR.sn && String(CUR.sn).toLowerCase().indexOf(String(CUR.dn || "").toLowerCase()) >= 0 && CUR.dn ? esc(CUR.sn) : esc(CUR.dn) + (CUR.sn ? ' <span class="gs"><i>(</i>' + esc(CUR.sn) + '<i>)</i></span>' : "")) + '</span></div><div class="gr"><button class="ab" id="acB" type="button" aria-label="পেছনে">←</button><div class="gm"><span class="nl" id="acNm"></span><button class="ol" id="acOl" type="button" hidden aria-label="সদস্যদের তালিকা"></button></div><button class="ab" id="acMr" type="button" aria-label="মেনু" aria-haspopup="true" style="font-weight:800">⋯</button><button class="ab" id="acSn" type="button" aria-label="নতুন বার্তার শব্দ চালু/বন্ধ">' + (SND.on ? "🔔" : "🔕") + '</button><button class="ab" id="acIn" type="button" aria-label="User Info">👥</button><button class="ab" id="acEd" type="button" aria-label="নাম বদলান">✎</button><button class="ab" id="acMn" type="button" aria-label="মিনিমাইজ" style="font-weight:800">—</button><button class="ab" id="acCl" type="button" aria-label="চ্যাট বন্ধ করুন">✕</button></div></div>' + '<div class="nt" id="acNt" hidden></div><div class="rsb" id="acRsB" hidden></div><div class="am" id="acM"><div class="em">⏳ লোড হচ্ছে…</div></div><div class="ty" id="acTy" hidden></div><div class="rp" id="acRp" hidden><span></span><button class="ab" id="acRc" type="button" aria-label="রিপ্লাই বাতিল">✕</button></div><div class="ep" id="acEm" hidden>' + emoHtml() + '</div><div class="bn" id="acBn" hidden></div><div class="ac"><button class="ib" id="acAt" type="button" aria-label="ফাইল পাঠান">📎</button><button class="ib" id="acEb" type="button" aria-label="ইমোজি">😊</button><textarea id="acI" rows="1" maxlength="400" placeholder="বার্তা লিখুন…" aria-label="বার্তা" autocomplete="off"></textarea><button class="ib" id="acSd" type="button" aria-label="পাঠান" style="font-size:24px">➤</button><input type="file" id="acFl" hidden accept="' + ACCEPT + '"></div><div id="acT"></div>';
     var sub = subt; sub(); faMount(); $("#acIn").onclick = members; $("#acOl").onclick = members; fit(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
     $("#acB").onclick = function () { if (!confirm("আপনি কি চ্যাট থেকে বের হতে চান?")) return; unjoin(); leaveRoom(); gate(); };
@@ -536,10 +690,10 @@
       if ($("#acMnu")) { closeMenu(); return; }
       var host = $("#acx"), mr = $("#acMr"); if (!host || !mr) return;
       var m = document.createElement("div"); m.className = "mnu"; m.id = "acMnu"; m.setAttribute("role", "menu");
-      m.innerHTML = '<button type="button" data-t="acIn">👥 User Info</button><button type="button" data-t="acEd">✎ আপনার নাম বদলান</button>' + (window.FATheme && (ADM || FATheme.canPick()) ? '<button type="button" data-th="1">🎨 চ্যাট থিম' + (ADM ? ' (অ্যাডমিন)' : '') + '</button>' : '') + '<button type="button" class="fh" data-f aria-expanded="false"><span>⚙️ চালু/বন্ধ অপশন</span><b>▾</b></button><div class="fb" hidden><button type="button" data-t="acSn">' + (SND.on ? "🔔 শব্দ: চালু (বন্ধ করুন)" : "🔕 শব্দ: বন্ধ (চালু করুন)") + '</button>' + (window.FADoor && FADoor.selfOn ? '<button type="button" data-g="1">' + (FADoor.selfOn() ? "🚪 আমার দরজা: চালু (বন্ধ করুন)" : "🚪 আমার দরজা: বন্ধ (চালু করুন)") + '</button><button type="button" data-g="2">' + (FADoor.sndOn() ? "🔊 দরজার শব্দ: চালু (বন্ধ করুন)" : "🔇 দরজার শব্দ: বন্ধ (চালু করুন)") + '</button>' : "") + (window.faBub && faBub.userOn ? '<button type="button" data-g="3">' + (faBub.userOn() ? "💬 বাবল: চালু (বন্ধ করুন)" : "💬 বাবল: বন্ধ (চালু করুন)") + '</button>' : "") + "</div>";
+      m.innerHTML = '<button type="button" data-t="acIn">👥 User Info</button><button type="button" data-t="acEd">✎ আপনার নাম বদলান</button><button type="button" data-pwa="1">📲 হোম স্ক্রীনে সেভ করুন</button>' + (PK ? '<button type="button" data-push="1">' + pushLab() + '</button>' : "") + (window.FATheme && (ADM || FATheme.canPick()) ? '<button type="button" data-th="1">🎨 চ্যাট থিম' + (ADM ? ' (অ্যাডমিন)' : '') + '</button>' : '') + '<button type="button" class="fh" data-f aria-expanded="false"><span>⚙️ চালু/বন্ধ অপশন</span><b>▾</b></button><div class="fb" hidden><button type="button" data-t="acSn">' + (SND.on ? "🔔 শব্দ: চালু (বন্ধ করুন)" : "🔕 শব্দ: বন্ধ (চালু করুন)") + '</button>' + (window.FADoor && FADoor.selfOn ? '<button type="button" data-g="1">' + (FADoor.selfOn() ? "🚪 আমার দরজা: চালু (বন্ধ করুন)" : "🚪 আমার দরজা: বন্ধ (চালু করুন)") + '</button><button type="button" data-g="2">' + (FADoor.sndOn() ? "🔊 দরজার শব্দ: চালু (বন্ধ করুন)" : "🔇 দরজার শব্দ: বন্ধ (চালু করুন)") + '</button>' : "") + (window.faBub && faBub.userOn ? '<button type="button" data-g="3">' + (faBub.userOn() ? "💬 বাবল: চালু (বন্ধ করুন)" : "💬 বাবল: বন্ধ (চালু করুন)") + '</button>' : "") + "</div>";
       host.appendChild(m);
       var r = mr.getBoundingClientRect(); m.style.top = (r.bottom + 6) + "px"; m.style.right = Math.max(8, window.innerWidth - r.right) + "px"; m.style.maxHeight = Math.max(160, window.innerHeight - r.bottom - 16) + "px"; m.style.overflowY = "auto";
-      m.onclick = function (e) { var th = e.target.closest("[data-th]"); if (th) { closeMenu(); try { FATheme.sheet("chat", { adm: ADM, arpc: arpc }); } catch (z) {} return; } var f = e.target.closest("[data-f]"); if (f) { var fb = m.querySelector(".fb"), op = fb.hidden; fb.hidden = !op; f.setAttribute("aria-expanded", op ? "true" : "false"); f.lastChild.textContent = op ? "▴" : "▾"; return; } var g = e.target.closest("[data-g]"); if (g) { closeMenu(); try { if (g.dataset.g === "3") faBub.toggleUser(); else if (g.dataset.g === "2") FADoor.toggleSnd(); else FADoor.toggleSelf(); } catch (z) {} return; } var b = e.target.closest("[data-t]"); if (!b) return; var t = $("#" + b.dataset.t); closeMenu(); if (t) t.click(); };
+      m.onclick = function (e) { if (e.target.closest("[data-push]")) { closeMenu(); pushToggle(); return; } if (e.target.closest("[data-pwa]")) { closeMenu(); try { FAPwa.guide(); } catch (z) {} return; } var th = e.target.closest("[data-th]"); if (th) { closeMenu(); try { FATheme.sheet("chat", { adm: ADM, arpc: arpc }); } catch (z) {} return; } var f = e.target.closest("[data-f]"); if (f) { var fb = m.querySelector(".fb"), op = fb.hidden; fb.hidden = !op; f.setAttribute("aria-expanded", op ? "true" : "false"); f.lastChild.textContent = op ? "▴" : "▾"; return; } var g = e.target.closest("[data-g]"); if (g) { closeMenu(); try { if (g.dataset.g === "3") faBub.toggleUser(); else if (g.dataset.g === "2") FADoor.toggleSnd(); else FADoor.toggleSelf(); } catch (z) {} return; } var b = e.target.closest("[data-t]"); if (!b) return; var t = $("#" + b.dataset.t); closeMenu(); if (t) t.click(); };
       setTimeout(function () { document.addEventListener("click", outMenu, true); }, 0);
     }
     $("#acMr").onclick = function () { openMenu(); };
@@ -591,20 +745,22 @@
       if (e.target.id === "acHi") return loadOld(true);
       var shE = e.target.closest("[data-shu]"); if (shE) return shotInfo(shE.dataset.shu, +shE.dataset.sht); // 📸 সময়ে চাপলে ইউজার ইনফো (শুধু অ্যাডমিন)
       var ehE = e.target.closest("[data-eh]"); if (ehE) return editHist(+ehE.dataset.eh); // ✎ Edited চাপলে আগের লেখাগুলোর ইতিহাস (সবাই দেখে)
-      var rsE = e.target.closest("[data-rs]"); if (rsE) return rsPop(rsE.dataset.rs); // ❌ / RESTRICTED ট্যাগ: সবাই ওয়ার্নিং দেখে
+      var roE = e.target.closest("[data-ro]"); if (roE) { var roI = roE.dataset.ro; OPO[roI] = !OPO[roI]; var roB = roE.closest(".bb").querySelector(".rso"); if (roB) roB.hidden = !OPO[roI]; roE.textContent = OPO[roI] ? "🙈" : "👁"; return; } // part151: শুধু অ্যাডমিন — লুকানো বার্তার আসল লেখা খোলা/বন্ধ
+      var rsE = e.target.closest("[data-rs]"); if (rsE) { var rrw = rsE.closest("[data-id]"); return rsPop(rsE.dataset.rs, rrw ? +rrw.dataset.id : 0); } // ❌ / RESTRICTED ট্যাগ: সবাই ওয়ার্নিং দেখে
       var uc = e.target.closest("[data-uc]"); if (uc) return card(uc.dataset.uc); var mnE = e.target.closest(".mn"); if (mnE) { var tk2 = mnE.textContent, fu = [], sn2 = {}; MSGS.forEach(function (q) { var qx = MET[q.id] || {}; if (!qx.u || mkey(qx.n || q.nick) !== tk2) return; if (!sn2[qx.u]) { sn2[qx.u] = { u: qx.u, n: qx.n || q.nick }; fu.push(sn2[qx.u]); } sn2[qx.u].a = qx.a; sn2[qx.u].t = q.body || "📎 ফাইল"; }); if (!fu.length) return toast("এই নামে কাউকে পাওয়া যায়নি।"); return fu.length === 1 ? card(fu[0].u) : pickUser(fu); }
       var row = e.target.closest("[data-id]"); if (!row) { selClear(); return; } var id = +row.dataset.id;
-      if (e.target.closest("[data-seen]")) return rpc("mc2_ac_seenlist", { p_msg: id }).then(function (L) { var Z = document.createElement("div"); Z.className = "sh0"; Z.innerHTML = '<div class="sh"><b>👁 যারা দেখেছে (' + bd(L.length) + ")</b>" + (L.length ? L.map(function (n) { return "<div>• " + esc(n) + "</div>"; }).join("") : "<div>এখনো কেউ দেখেনি।</div>") + '<button type="button">বন্ধ করুন</button></div>'; Z.onclick = function () { Z.remove(); }; $("#acx").appendChild(Z); });
+      if (e.target.closest("[data-seen]")) return openSeen(id);
       if (e.target.closest("[data-rxs]")) return rxpop(id, e.target.closest("[data-rxs]"));
       if (e.target.closest("[data-fv]")) return viewer(id);
       if (e.target.closest("[data-menu]")) { selClear(); return sheet(id); }
       if (e.target.closest("[data-bb]") && !e.target.closest("a,video,audio")) { rxclose(); selClear(); return sheet(id); } // Friend Adda: থ্রি-ডট (⋯) নেই; বার্তার লেখায় চাপলে সরাসরি মেনু খোলে
     };
     (function () { // বাঁ↔ডান swipe = রিপ্লাই (আঙুলের সাথে বাবল সরে; বারবার কাজ করে)
-      var sx = 0, sy = 0, sr = null, tg = null, mv = false, MM = $("#acM");
+      function swPx() { try { var c = JSON.parse(localStorage.getItem("mc2_th_c") || "{}"), v = Number(c && c.opts && c.opts.swipe); if (v >= 10 && v <= 150) return v; } catch (e) {} return 30; } // অ্যাডমিনের সেট করা swipe দূরত্ব (px); না থাকলে ৩০
+      var sx = 0, sy = 0, sr = null, tg = null, mv = false, MM = $("#acM"); MM.style.touchAction = "pan-y"; // আড়াআড়ি টান ব্রাউজার যেন কেড়ে না নেয় (touchcancel হয়ে রিপ্লাই হারানো ঠেকায়)
       function clean() { if (tg) { tg.removeEventListener("touchend", done); tg.removeEventListener("touchcancel", done); tg.removeEventListener("touchmove", move); } tg = null; }
-      function move(e) { if (!sr || !e.touches[0]) return; var dx = e.touches[0].clientX - sx, dy = Math.abs(e.touches[0].clientY - sy); if (!mv && Math.abs(dx) > 10 && Math.abs(dx) > dy * 1.5) mv = true; if (mv) sr.style.transform = "translateX(" + Math.max(-70, Math.min(70, dx * 0.6)) + "px)"; }
-      function done(e) { var r = sr; clean(); sr = null; TCH = 0; if (!r) return; r.style.transform = ""; var t = (e.changedTouches || [])[0]; if (e.type !== "touchend" || !t) return; var dx = t.clientX - sx, dy = Math.abs(t.clientY - sy); if (Math.abs(dx) > 60 && dy < 40) setReply(+r.dataset.id); }
+      function move(e) { if (!sr || !e.touches[0]) return; var dx = e.touches[0].clientX - sx, dy = Math.abs(e.touches[0].clientY - sy); if (!mv && Math.abs(dx) > 6 && Math.abs(dx) > dy * 1.2) mv = true; if (mv) sr.style.transform = "translateX(" + Math.max(-70, Math.min(70, dx * 0.8)) + "px)"; }
+      function done(e) { var r = sr; clean(); sr = null; TCH = 0; if (!r) return; r.style.transform = ""; var t = (e.changedTouches || [])[0]; if (e.type !== "touchend" || !t) return; var dx = t.clientX - sx, dy = Math.abs(t.clientY - sy); if (Math.abs(dx) > swPx() && Math.abs(dx) > dy * 1.2) setReply(+r.dataset.id); } // part162: সীমা এখন ডিফল্ট ৩০px; অ্যাডমিন → ↔ রিপ্লাই swipe থেকে বদলানো যায়
       MM.addEventListener("touchstart", function (e) { clean(); if (sr) { sr.style.transform = ""; } var r = e.target.closest("[data-id]"); if (!r || e.touches.length !== 1) { sr = null; TCH = 0; return; } sr = r; mv = false; TCH = Date.now(); sx = e.touches[0].clientX; sy = e.touches[0].clientY;
         // আঁকার সময় এলিমেন্ট DOM থেকে সরলেও যেন touchend ধরা পড়ে, তাই টার্গেটে সরাসরি বসানো
         tg = e.target; tg.addEventListener("touchend", done); tg.addEventListener("touchcancel", done); tg.addEventListener("touchmove", move, { passive: true }); }, { passive: true }); })();
@@ -669,7 +825,7 @@
   // ---------- মডারেশন: নিজের স্ট্যাটাস (সতর্কতা / Restriction / Ban) ও রিপোর্ট ----------
   function EM() { return ME && ME.s !== "ok" ? ME : LK && (!LK.x || LK.x > Date.now()) ? { s: "banned", u: LK.x || 0, r: LK.r, lk: 1 } : ME || { s: "ok", w: [] }; } // বাস্তব ব্যান/Restriction (ME) অথবা অ্যাডমিনের স্থায়ী লক (LK)
   function lockOn() { return EM().s !== "ok"; }
-  function left(ms) { var t = Math.max(1, Math.ceil((ms - Date.now()) / 60000)), d = Math.floor(t / 1440), h = Math.floor(t % 1440 / 60), m = t % 60; return d ? bd(d) + " দিন " + bd(h) + " ঘণ্টা" : h ? bd(h) + " ঘণ্টা " + bd(m) + " মিনিট" : bd(m) + " মিনিট"; }
+  function left(ms) { if (ms - Date.now() > 1.5e11) return "আজীবন"; var t = Math.max(1, Math.ceil((ms - Date.now()) / 60000)), d = Math.floor(t / 1440), h = Math.floor(t % 1440 / 60), m = t % 60; return d ? bd(d) + " দিন " + bd(h) + " ঘণ্টা" : h ? bd(h) + " ঘণ্টা " + bd(m) + " মিনিট" : bd(m) + " মিনিট"; }
   function applyLock() {
     var EX = EM(), a = $("#acAt"), i = $("#acI"), sd = $("#acSd"), e = $("#acEb"), b = $("#acBn"), L = lockOn();
     if (a) { a.disabled = !UP || L; a.style.opacity = a.disabled ? ".35" : ""; a.title = L ? "" : !UP ? "ফাইল আপলোড এখন বন্ধ আছে" : "ফাইল পাঠান"; }
@@ -703,7 +859,7 @@
   // ---------- খারাপ শব্দ: Restricted ইউজারের লেখায় থাকলে লেখা লুকিয়ে লাল বক্স ----------
   function nbad(t) { return String(t || "").toLowerCase().replace(/[\s​-‍.,_\-*+'"!?()]+/g, ""); }
   function badText(t) { if (!t || !BAD.length) return false; var n = nbad(t); return BAD.some(function (w) { return n.indexOf(w) >= 0; }); }
-  function hid(m) { var x = MET[m.id] || {}; return !!(RSON !== false && m && m.body && !(x.d || m.deleted) && badText(m.body)); } // খারাপ শব্দ থাকলে যে-ই লিখুক লেখা লুকায় (সার্ভার তাকে অটো-Restriction দেয়, কয়েক সেকেন্ডে ⛔ চিহ্ন আসে)
+  function hid(m) { var x = MET[m.id] || {}; return !!(RSON !== false && m && m.body && !(x.d || m.deleted) && ((badText(m.body) && !FM[m.id]) || HM[m.id] || rsTgt(x, !!x.o, m.id))); } // খারাপ শব্দ থাকলে যে-ই লিখুক লেখা লুকায় (সার্ভার তাকে অটো-Restriction দেয়, কয়েক সেকেন্ডে ⛔ চিহ্ন আসে)
 
   // ---------- 📸 স্ক্রীনশট নোটিশ (শুধু অ্যাডমিন দেখে) ----------
   // কেউ স্ক্রীনশটের চেষ্টা করলে (সুরক্ষা চালু/বন্ধ যাই থাক) সার্ভারে লগ হয় (fa_log_shot)। সাধারণ ইউজার কাউকে দেখে না — পড়ার ফাংশন fa_admin_shots শুধু অ্যাডমিনের।
@@ -807,7 +963,96 @@
   function admInit() {
     if (Date.now() - ADMT < 60000) return; ADMT = Date.now();
     if (!admGet()) { ADM = false; return; }
-    arpc("mc2_is_admin").then(function (ok) { ADM = ok === true; }).catch(function () { ADM = false; });
+    arpc("mc2_is_admin").then(function (ok) { var was = ADM; ADM = ok === true; if (ADM !== was && $("#acM")) { RSV++; try { render(false); } catch (e) {} } }).catch(function () { ADM = false; });
+  }
+  function rsDlg(title, o) { // part151: দুই ধরনের Restriction-এর সময় + ওয়ার্নিং — Promise: { mm: মেসেজ-মিনিট|null, um: ইউজার-মিনিট|null, reason } বা বাতিলে null
+    return new Promise(function (ok) {
+      var Z = document.createElement("div"), LF = 52560000; Z.className = "sh0"; Z.id = "acAd";
+      var sty = 'style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid rgba(128,128,128,.45);font:inherit;background:inherit;color:inherit;margin-top:6px"';
+      var LS2 = [["♾ আজীবন", LF], ["১৫ মিনিট", 15], ["১ ঘণ্টা", 60], ["৬ ঘণ্টা", 360], ["২৪ ঘণ্টা", 1440], ["৩ দিন", 4320], ["৭ দিন", 10080], ["৩০ দিন", 43200]];
+      var sel = function (id, def, skip) {
+        var has = LS2.some(function (d) { return d[1] === def; });
+        return '<select id="' + id + '" ' + sty + ">" + (skip ? '<option value="0">— দেবেন না —</option>' : "") + LS2.map(function (d) { return '<option value="' + d[1] + '"' + (has && d[1] === def ? " selected" : "") + ">" + esc(d[0]) + "</option>"; }).join("") + '<option value="c"' + (has ? "" : " selected") + '>✏️ কাস্টম (মিনিট)</option></select><input id="' + id + 'c" type="number" min="1" max="' + LF + '" inputmode="numeric" placeholder="কত মিনিট?" value="' + (has ? "" : def) + '"' + (has ? " hidden" : "") + " " + sty + ">";
+      };
+      Z.innerHTML = '<div class="sh"><b>' + esc(title) + "</b>" +
+        (o.msg ? '<div class="sm2" style="margin-top:6px"><b>📝 মেসেজ Restriction</b> — এই বার্তার লেখা সবার কাছে চিরতরে লুকানো থাকবে; এই সময় চলাকালে বার্তায় ⛔ ও ওয়ার্নিং থাকবে (ডিফল্ট আজীবন)।</div>' + sel("acRm", DF.m, !!o.user) : "") +
+        (o.user ? '<div class="sm2" style="margin-top:8px"><b>👤 ইউজার Restriction</b> — সময় চলাকালে তার নামের পাশে ⛔ ও তার ওপরে ওয়ার্নিং-বার থাকবে। নতুন মেসেজ লুকাবে না, সে লিখতে পারবে (ডিফল্ট ১ ঘণ্টা)।</div>' + sel("acRu", DF.u, !!o.msg) : "") +
+        '<input id="acAd3" maxlength="300" placeholder="⚠️ ওয়ার্নিং লিখুন (ইউজার ও সবাই দেখবে)" ' + sty + '><div class="sm2" id="acAd4" style="color:#d93025"></div><button type="button" data-ok>✅ নিশ্চিত করুন</button><button type="button" data-x>বাতিল</button></div>';
+      var q = function (k) { return Z.querySelector(k); }, done = function (v) { Z.remove(); ok(v); };
+      ["acRm", "acRu"].forEach(function (id) { var e = q("#" + id); if (e) e.onchange = function () { q("#" + id + "c").hidden = this.value !== "c"; }; });
+      var get = function (id) { var e = q("#" + id); if (!e) return null; var v = e.value; if (v === "0") return null; var n = v === "c" ? Math.floor(+q("#" + id + "c").value) : +v; return n >= 1 && n <= LF ? n : NaN; };
+      Z.onclick = function (e) {
+        if (e.target === Z || e.target.closest("[data-x]")) return done(null);
+        if (!e.target.closest("[data-ok]")) return;
+        var r = q("#acAd3").value.trim(), mm = get("acRm"), um = get("acRu");
+        if (r.length < 3) { q("#acAd4").textContent = "অন্তত ৩ অক্ষরে ওয়ার্নিং লিখুন।"; return; }
+        if (mm !== mm || um !== um) { q("#acAd4").textContent = "কাস্টম সময় ১ – ৫২৫৬০০০০ মিনিটের মধ্যে দিন।"; return; }
+        if (!mm && !um) { q("#acAd4").textContent = "অন্তত একটা Restriction বাছুন।"; return; }
+        done({ mm: mm, um: um, reason: r });
+      };
+      $("#acx").appendChild(Z);
+    });
+  }
+  function punish(V, u, c, close) { // part153: শাস্তি/ব্যবস্থার ড্রপডাউন — Restriction · সাময়িক ব্যান · স্থায়ী ব্যান · লক · আইপি ব্যান (+ তোলা/আনলক)
+    var nick = c.n, fail = function (er) { var t = String(er && er.message ? er.message : er); toast("হয়নি: " + t.slice(0, 140) + (/fa_ip|function|schema cache|404/i.test(t) ? " — (SQL-33 চালিয়েছেন কি?)" : "")); };
+    Promise.all([arpc("fa_admin_ip_info", { p_voter: V }).catch(function () { return null; }), arpc("fa_admin_locks", {}).catch(function () { return []; }), arpc("fa_admin_restrictions", { p_active_only: true }).catch(function () { return []; }), arpc("fa_admin_same_device", { p_voter: V }).catch(function () { return []; })]).then(function (R) {
+      var LD = Array.isArray(R[3]) ? R[3] : [];
+      var I = R[0], locked = (R[1] || []).some(function (q) { return q.voter === V; }), hasRs = (R[2] || []).some(function (q) { return q.voter === V; }), banned = !!c.banned, ipb = I && I.bans || [], oth = I && I.users ? I.users.filter(function (q) { return q.voter !== V; }) : [];
+      var Z = document.createElement("div"); Z.className = "sh0"; Z.id = "acPun";
+      var sty = 'style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid rgba(128,128,128,.45);font:inherit;background:inherit;color:inherit;margin-top:6px"';
+      var DL = { rs: [["♾ আজীবন", 52560000], ["১৫ মিনিট", 15], ["১ ঘণ্টা", 60], ["৬ ঘণ্টা", 360], ["২৪ ঘণ্টা", 1440], ["৩ দিন", 4320], ["৭ দিন", 10080], ["৩০ দিন", 43200]],
+        tb: [["১৫ মিনিট", 15], ["১ ঘণ্টা", 60], ["৬ ঘণ্টা", 360], ["২৪ ঘণ্টা", 1440], ["৩ দিন", 4320], ["৭ দিন", 10080], ["৩০ দিন", 43200]],
+        lk: [["♾ স্থায়ী (আমি খুলে না দেওয়া পর্যন্ত)", 0], ["১ ঘণ্টা", 60], ["৬ ঘণ্টা", 360], ["২৪ ঘণ্টা", 1440], ["৩ দিন", 4320], ["৭ দিন", 10080], ["৩০ দিন", 43200]],
+        ip: [["২৪ ঘণ্টা", 1440], ["১ ঘণ্টা", 60], ["৬ ঘণ্টা", 360], ["৩ দিন", 4320], ["৭ দিন", 10080], ["৩০ দিন", 43200], ["♾ স্থায়ী", 0]] };
+      var DEF = { rs: DF.u, tb: 1440, lk: 0, ip: 1440 }, CMAX = { rs: 52560000, tb: 525600, lk: 525600, ip: 525600 };
+      var HINT = { rs: "👤 ইউজার Restriction: নামের পাশে ⛔ ও তার ওপরে ওয়ার্নিং-বার; সে লিখতে পারে।", tb: "⏱ এই ডিভাইস থেকে সময়ের জন্য বার্তা পাঠানো বন্ধ (ব্যান-স্ক্রিন দেখবে)।", pb: "⛔ রিপোর্ট ছাড়া স্থায়ী ব্যান: ৩টি বৈধ রিপোর্ট/যাচাই লাগে না; আপনি তুলে না দিলে থাকবে।", pr: "⛔ রিপোর্ট সহ স্থায়ী ব্যান: ৩ জন আলাদা ইউজারের বৈধ রিপোর্ট + যাচাই (Verify) আগে থেকে থাকতে হবে, না থাকলে সার্ভার আটকাবে।",
+        lk: "🔒 লক: সে চ্যাট দেখতে পারবে, কিন্তু কিছু পাঠাতে/রিপ্লাই দিতে পারবে না। পরে 🔓 আনলক করা যায়।", ip: "🌐 আইপি ব্যান: ওই আইপি থেকে যে-ই আসুক (ইনকগনিটো/নতুন নাম/নতুন ডিভাইস-আইডিতেও) বার্তা পাঠাতে পারবে না।" + (oth.length ? " ⚠️ এই আইপিতে আরও " + bd(oth.length) + " জন ইউজার ছিল — তারাও আটকাবে (শেয়ার্ড ওয়াইফাই হতে পারে)।" : "") };
+      var A = [["rs", "⚠️ Restriction (ইউজার)"], ["tb", "⏱ সাময়িক ব্যান"], ["pb", "⛔ স্থায়ী ব্যান — রিপোর্ট ছাড়া"], ["pr", "⛔ স্থায়ী ব্যান — রিপোর্ট সহ"], ["lk", "🔒 লক"], ["ip", "🌐 আইপি ব্যান" + (I && I.ip ? " — " + I.ip : "")]];
+      if (hasRs) A.push(["ur", "🔓 চলমান সব Restriction তুলুন"]); if (banned) A.push(["ub", "🔓 ব্যান তুলুন"]); if (locked) A.push(["ul", "🔓 লক খুলুন (আনলক)"]); ipb.forEach(function (q) { A.push(["ui:" + q.id, "🔓 আইপি ব্যান তুলুন" + (q.e ? "" : " (স্থায়ী)")]); });
+      Z.innerHTML = '<div class="sh"><b>🛡️ ' + esc(nick) + " — শাস্তি / ব্যবস্থা</b>" +
+        (I && I.ip ? '<div class="sm2">🌐 আইপি: <b>' + esc(I.ip) + "</b>" + (oth.length ? " · এই আইপির অন্য ইউজার: " + oth.slice(0, 8).map(function (q) { return esc(q.nick || "বেনামি"); }).join(", ") + (oth.length > 8 ? " …" : "") : " · এই আইপিতে আর কেউ নেই") + "</div>" : '<div class="sm2">🌐 এই ইউজারের আইপি জানা নেই (বা SQL-33 চালানো হয়নি)।</div>') +
+        (LD.length ? '<div class="sm2">📱 একই ডিভাইসের সম্ভাব্য অন্য আইডি: ' + LD.slice(0, 6).map(function (q) { return "<b>" + esc(q.nick || "বেনামি") + "</b> (" + (q.lv === "high" ? "খুব সম্ভব" : "সম্ভাব্য") + ")"; }).join(", ") + (LD.length > 6 ? " …" : "") + '</div><label class="chk" id="acPlw" style="display:flex;gap:8px;align-items:center;margin-top:4px"><input type="checkbox" id="acPl"> 🔗 এই ' + bd(LD.length) + " টি আইডিতেও একই শাস্তি দিন</label>" : "") +
+        '<label>কী করবেন?<select id="acPa" ' + sty + ">" + A.map(function (a) { return '<option value="' + a[0] + '">' + esc(a[1]) + "</option>"; }).join("") + '</select></label><div class="sm2" id="acPh"></div>' +
+        '<div id="acPt"><label>⏳ সময়কাল<select id="acPd" ' + sty + '></select></label><input id="acPc" type="number" min="1" inputmode="numeric" placeholder="কত মিনিট?" hidden ' + sty + '></div>' +
+        '<input id="acPr" maxlength="300" placeholder="⚠️ ওয়ার্নিং / কারণ লিখুন (ইউজার দেখবে)" ' + sty + '><div class="sm2" id="acPe" style="color:#d93025"></div><button type="button" data-ok>✅ নিশ্চিত করুন</button><button type="button" data-x>বাতিল</button></div>';
+      var q = function (k) { return Z.querySelector(k); }, cur = function () { return q("#acPa").value; };
+      var draw = function () {
+        var a = cur(), L = DL[a]; q("#acPh").textContent = HINT[a] || ""; q("#acPt").hidden = !L; q("#acPr").hidden = !!(a === "ur" || a === "ub" || a === "ul" || a.indexOf("ui:") === 0) && a !== "ub"; q("#acPe").textContent = "";
+        if (a === "ub") q("#acPr").placeholder = "কারণ (ঐচ্ছিক)"; else q("#acPr").placeholder = "⚠️ ওয়ার্নিং / কারণ লিখুন (ইউজার দেখবে)";
+        if (L) { q("#acPd").innerHTML = L.map(function (d) { return '<option value="' + d[1] + '"' + (d[1] === DEF[a] ? " selected" : "") + ">" + esc(d[0]) + "</option>"; }).join("") + '<option value="c">✏️ কাস্টম (মিনিট)</option>'; q("#acPc").hidden = true; q("#acPc").max = CMAX[a]; }
+      };
+      q("#acPa").onchange = draw; q("#acPd").onchange = function () { q("#acPc").hidden = this.value !== "c"; }; draw();
+      Z.onclick = function (e) {
+        if (e.target === Z || e.target.closest("[data-x]")) return Z.remove();
+        var okb = e.target.closest("[data-ok]"); if (!okb) return;
+        var a = cur(), L = DL[a], r = q("#acPr").value.trim(), mn = null, err = function (t) { q("#acPe").textContent = t; };
+        var undo = a === "ur" || a === "ul" || a.indexOf("ui:") === 0 || a === "ub";
+        if (!undo && r.length < 3) return err("অন্তত ৩ অক্ষরে কারণ/ওয়ার্নিং লিখুন।");
+        if (L) { var v = q("#acPd").value; mn = v === "c" ? Math.floor(+q("#acPc").value) : +v; if (v === "c" && !(mn >= 1 && mn <= CMAX[a])) return err("সময় ১ – " + bd(CMAX[a]) + " মিনিটের মধ্যে দিন।"); if (a === "tb" && mn < 5) return err("সাময়িক ব্যান কমপক্ষে ৫ মিনিট।"); }
+        if (a === "ip" && oth.length && !confirm("এই আইপিতে আরও " + bd(oth.length) + " জন ইউজার ছিল — আইপি ব্যান দিলে তারাও আটকাবে। তবুও দেবেন?")) return;
+        if ((a === "pb" || a === "pr" || (a === "ip" && !mn)) && !confirm(a === "pb" || a === "pr" ? "স্থায়ী ব্যান দেবেন?" : "স্থায়ী আইপি ব্যান দেবেন?")) return;
+        okb.disabled = true; var p, withLd = !!(q("#acPl") && q("#acPl").checked && (a === "rs" || a === "tb" || a === "pb" || a === "pr" || a === "lk"));
+        if (a === "rs") p = arpc("fa_restrict", { p_voter: V, p_uid: u, p_nick: nick, p_reason: r, p_minutes: mn });
+        else if (a === "tb") p = arpc("mc2_ac_admin_sanction", { p_voter: V, p_kind: "ban", p_minutes: mn, p_reason: r });
+        else if (a === "pb" || a === "pr") p = arpc("mc2_ac_admin_sanction", { p_voter: V, p_kind: "ban", p_minutes: null, p_reason: r, p_with_reports: a === "pr" });
+        else if (a === "lk") p = arpc("fa_lock", { p_voter: V, p_uid: u, p_nick: nick, p_reason: r, p_minutes: mn || null });
+        else if (a === "ip") p = arpc("fa_ip_ban", { p_voter: V, p_ip: null, p_minutes: mn || null, p_reason: r });
+        else if (a === "ur") p = arpc("fa_unrestrict", { p_voter: V });
+        else if (a === "ub") p = arpc("mc2_ac_admin_unban", { p_voter: V, p_reason: r || "অ্যাডমিন তুলে নিয়েছেন" });
+        else if (a === "ul") p = arpc("fa_unlock", { p_voter: V });
+        else p = arpc("fa_ip_unban", { p_id: +a.split(":")[1] });
+        if (withLd) p = p.then(function (r0) { // part154: সম্ভাব্য একই ডিভাইসের অন্য আইডিগুলোতেও (একটা ব্যর্থ হলে বাকিরা চলে)
+          return Promise.all(LD.map(function (q2) {
+            if (a === "rs") return arpc("fa_restrict", { p_voter: q2.voter, p_uid: q2.uid || "", p_nick: q2.nick || "", p_reason: r, p_minutes: mn }).catch(function () {});
+            if (a === "tb") return arpc("mc2_ac_admin_sanction", { p_voter: q2.voter, p_kind: "ban", p_minutes: mn, p_reason: r }).catch(function () {});
+            if (a === "pb" || a === "pr") return arpc("mc2_ac_admin_sanction", { p_voter: q2.voter, p_kind: "ban", p_minutes: null, p_reason: r, p_with_reports: a === "pr" }).catch(function () {});
+            return arpc("fa_lock", { p_voter: q2.voter, p_uid: q2.uid || "", p_nick: q2.nick || "", p_reason: r, p_minutes: mn || null }).catch(function () {});
+          })).then(function () { return r0; });
+        });
+        p.then(function () { Z.remove(); if (close) close(); toast({ rs: "✅ ইউজার Restriction দেওয়া হয়েছে।", tb: "⏱ সাময়িক ব্যান দেওয়া হয়েছে।", pb: "⛔ স্থায়ী ব্যান দেওয়া হয়েছে।", pr: "⛔ স্থায়ী ব্যান (রিপোর্ট সহ) দেওয়া হয়েছে।", lk: "🔒 লক করা হয়েছে।", ip: "🌐 আইপি ব্যান দেওয়া হয়েছে।", ur: "🔓 Restriction তোলা হয়েছে।", ub: "🔓 ব্যান তোলা হয়েছে।", ul: "🔓 আনলক করা হয়েছে।" }[a] || "🔓 আইপি ব্যান তোলা হয়েছে।"); rtNudge(); rsLoad(); load("new"); }).catch(function (er) { okb.disabled = false; fail(er); });
+      };
+      $("#acx").appendChild(Z);
+    });
   }
   function admDlg(title, o) { // সময় (ঐচ্ছিক) + কারণ — Promise: { minutes, reason } বা বাতিলে null
     return new Promise(function (ok) {
@@ -823,7 +1068,7 @@
         if (!e.target.closest("[data-ok]")) return;
         var r = q("#acAd3").value.trim(), mn = null, min = o.min == null ? 3 : o.min;
         if (r.length < min) { q("#acAd4").textContent = "অন্তত " + bd(min) + " অক্ষরে লিখুন।"; return; }
-        if (o.dur) { var v = q("#acAd1").value; if (v !== "0") { mn = v === "c" ? Math.floor(+q("#acAd2").value) : +v; if (!(mn >= 1 && mn <= 525600)) { q("#acAd4").textContent = "সময় ১ – ৫২৫৬০০ মিনিটের মধ্যে দিন।"; return; } } }
+        if (o.dur) { var v = q("#acAd1").value; if (v === "-1") mn = -1; else if (v !== "0") { mn = v === "c" ? Math.floor(+q("#acAd2").value) : +v; if (!(mn >= 1 && mn <= 525600)) { q("#acAd4").textContent = "সময় ১ – ৫২৫৬০০ মিনিটের মধ্যে দিন।"; return; } } }
         done({ minutes: mn, reason: r });
       };
       $("#acx").appendChild(Z);
@@ -835,11 +1080,11 @@
       if (!T) return toast("বার্তার তথ্য পাওয়া যায়নি।");
       var nick = T.nick || x.n || m.nick, Z = document.createElement("div"); Z.className = "sh0"; Z.id = "acAm";
       var act = (T.active || []).map(function (r) {
-        return '<div class="rsw">⚠️ ' + esc(r.reason) + "<small>" + kl(r) + " · বাকি " + left(+r.e) + '</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button type="button" data-ra="shorten" data-id="' + r.id + '">⏱ সময় কমাও</button><button type="button" data-ra="extend" data-id="' + r.id + '">⏱ সময় বাড়াও</button><button type="button" class="dg" data-ra="end" data-id="' + r.id + '" data-k="' + esc(r.k) + '">🔓 বন্ধ করো</button></div></div>';
+        return '<div class="rsw">⚠️ ' + esc(r.reason) + "<small>" + (+r.mid > 0 ? "📝 মেসেজ" : "👤 ইউজার") + " · " + kl(r) + " · বাকি " + left(+r.e) + '</small><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button type="button" data-ra="shorten" data-id="' + r.id + '">⏱ সময় কমাও</button><button type="button" data-ra="extend" data-id="' + r.id + '">⏱ সময় বাড়াও</button><button type="button" class="dg" data-ra="end" data-id="' + r.id + '" data-k="' + esc(r.k) + '">🔓 বন্ধ করো</button></div></div>';
       }).join("");
       Z.innerHTML = '<div class="sh"><b>🛡️ অ্যাডমিন — ' + esc(nick) + '</b><div class="rsw">' + esc(String(m.body || (isF(m) ? "📎 " + lab(m) : "")).slice(0, 160)) + "</div>" +
-        (T.locked ? '<div class="sm2">🔒 এই ইউজার লকড (' + (T.lock_e ? "বাকি " + left(+T.lock_e) : "স্থায়ী") + ").</div>" : "") + (act ? "<b>চলমান Restriction</b>" + act : '<div class="sm2">এখন কোনো চলমান Restriction নেই।</div>') +
-        '<button type="button" data-aa="rs">⚠️ Restriction দিন</button><button type="button" data-aa="wn">📣 সতর্ক করুন</button><button type="button" class="dg" data-aa="bn">⛔ ব্যান</button><button type="button" class="dg" data-aa="rm">🗑 এই বার্তা সরান</button><button type="button" data-x>বন্ধ করুন</button></div>';
+        origBox(id) + (T.locked ? '<div class="sm2">🔒 এই ইউজার লকড (' + (T.lock_e ? "বাকি " + left(+T.lock_e) : "স্থায়ী") + ").</div>" : "") + (act ? "<b>চলমান Restriction</b>" + act : '<div class="sm2">এখন কোনো চলমান Restriction নেই।</div>') +
+        (hid(m) ? '<button type="button" data-aa="fg">✅ ভুল ছিল — লেখা আবার দেখান</button>' : "") + '<button type="button" data-aa="rs">⚠️ Restriction দিন</button><button type="button" data-aa="wn">📣 সতর্ক করুন</button><button type="button" class="dg" data-aa="bn">⛔ ব্যান</button><button type="button" class="dg" data-aa="rm">🗑 এই বার্তা সরান</button><button type="button" data-x>বন্ধ করুন</button></div>';
       var after = function (t) { Z.remove(); toast(t); rtNudge(); rsLoad(); load("new"); }, fail = function (er) { toast("হয়নি: " + (er && er.message ? er.message : er)); };
       Z.onclick = function (e) {
         if (e.target === Z || e.target.closest("[data-x]")) return Z.remove();
@@ -855,15 +1100,18 @@
             if (!d) return; return arpc("fa_restriction_adjust", { p_id: rid, p_action: a, p_minutes: d.minutes, p_note: d.reason }).then(function (r) { after(r && r.ended ? "🔓 সময় শেষ — Restriction বন্ধ হয়েছে।" : "✅ সময় বদলানো হয়েছে।"); });
           }).catch(fail);
         }
-        if (!aa) return; var k = aa.dataset.aa;
-        if (k === "rs") return admDlg("⚠️ Restriction — " + nick, { dur: ADUR, label: "⚠️ ওয়ার্নিং লিখুন (ইউজার ও সবাই দেখবে)" }).then(function (d) {
-          if (d) return arpc("fa_restrict", { p_voter: T.voter, p_uid: x.u || "", p_nick: nick, p_reason: d.reason, p_minutes: d.minutes }).then(function () { after("✅ Restriction দেওয়া হয়েছে।"); });
-        }).catch(fail);
+        if (!aa) return; var k = aa.dataset.aa; if (k === "fg") { if (!confirm("এই বার্তার Restriction ভুল ছিল — লেখা আবার সবাই দেখবে?")) return; return arpc("fa_restriction_forgive", { p_msg: id }).then(function () { after("✅ লেখা আবার দেখা যাবে।"); }).catch(fail); }
+        if (k === "rs") return rsDlg("⚠️ Restriction — " + nick, { msg: true, user: true }).then(function (d) { // part151: মেসেজ (লেখা চিরতরে লুকানো) + ইউজার (নামের পাশে ⛔) — আলাদা আলাদা সময়
+          if (!d) return; var base = { p_voter: T.voter, p_uid: x.u || "", p_nick: nick, p_reason: d.reason }, run = Promise.resolve();
+          if (d.mm) run = run.then(function () { return arpc("fa_restrict", Object.assign({ p_msg: id, p_minutes: d.mm }, base)); });
+          if (d.um) run = run.then(function () { return arpc("fa_restrict", Object.assign({ p_minutes: d.um }, base)); });
+          return run.then(function () { after("✅ " + (d.mm ? "মেসেজ Restriction (লেখা লুকানো)" : "") + (d.mm && d.um ? " + " : "") + (d.um ? "ইউজার Restriction" : "") + " দেওয়া হয়েছে।"); });
+        }).catch(function (er) { toast("হয়নি: " + (er && er.message ? er.message : er) + (/minutes|function|schema/i.test(String(er && er.message)) ? " — (SQL-32 চালিয়েছেন কি?)" : "")); });
         if (k === "wn") return admDlg("📣 সতর্কবার্তা — " + nick, { label: "সতর্কবার্তা (ইউজার দেখবে)" }).then(function (d) {
           if (d) return arpc("mc2_ac_admin_warn", { p_voter: T.voter, p_reason: d.reason, p_msg: id }).then(function () { after("✅ সতর্ক করা হয়েছে।"); });
         }).catch(fail);
-        if (k === "bn") return admDlg("⛔ ব্যান — " + nick, { dur: ADUR.concat([["স্থায়ী (৩টি বৈধ রিপোর্ট + যাচাই লাগবে)", 0]]), label: "📝 কারণ (ইউজারকে দেখানো হতে পারে)" }).then(function (d) {
-          if (d) return arpc("mc2_ac_admin_sanction", { p_voter: T.voter, p_kind: "ban", p_minutes: d.minutes || null, p_reason: d.reason }).then(function () { after("⛔ ব্যান করা হয়েছে।"); });
+        if (k === "bn") return admDlg("⛔ ব্যান — " + nick, { dur: ADUR.concat([["স্থায়ী ব্যান — রিপোর্ট ছাড়া", 0], ["স্থায়ী ব্যান — রিপোর্ট সহ (৩ বৈধ রিপোর্ট + যাচাই লাগে)", -1]]), label: "📝 কারণ (ইউজারকে দেখানো হতে পারে)" }).then(function (d) {
+          if (d) return arpc("mc2_ac_admin_sanction", { p_voter: T.voter, p_kind: "ban", p_minutes: d.minutes > 0 ? d.minutes : null, p_reason: d.reason, p_with_reports: d.minutes === -1 }).then(function () { after("⛔ ব্যান করা হয়েছে।"); });
         }).catch(fail);
         if (k === "rm") {
           return admDlg("🗑 বার্তা সরান — " + nick, { sub: "সরালে সবার স্ক্রিনে “🛡️ অ্যাডমিন এই বার্তাটি সরিয়েছেন” দেখাবে। নোট লিখলে সেটাও তার নিচে সবাই দেখবে; ফাঁকা রাখলে শুধু ঐ লাইনটা থাকবে।", label: "📝 অ্যাডমিন নোট (ঐচ্ছিক — সবাই দেখবে)", min: 0 }).then(function (d) {
@@ -880,9 +1128,21 @@
 
   function rsAct(w) { return w && w.e > Date.now(); }
   function rsGet(k) { return k === "me" ? RS.m : RS.p[k]; }
-  function rsKey(x, own) { // বাবলের লেখক Restricted কিনা: পাবলিক uid দিয়ে মেলে; নিজের হলে নিজের তালিকা দিয়েও
-    var k = x && x.u; if (k && (RS.p[k] || []).some(rsAct)) return k;
-    if (own && RS.m.some(rsAct)) return "me"; return "";
+  // ওয়ার্নিং কোন বার্তায় প্রযোজ্য: mid > 0 → শুধু ওই বার্তায়; mid = 0 → কোনো বার্তায় নয় (শুধু নিজের ওপরের বার); mid না থাকলে (পুরোনো SQL) → আগের মতো ইউজারের সব বার্তায়
+  function rsMsgHit(w, id) { return rsAct(w) && w.mid > 0 && w.mid === +id; } // part151: মেসেজ-ভিত্তিক (লেখা লুকায়)
+  function rsUsrHit(w) { return rsAct(w) && (w.mid == null || w.mid === 0); } // part151: ইউজার-ভিত্তিক (নামের পাশে ⛔ + ওপরের ওয়ার্নিং-বার; লেখা লুকায় না)
+  function rsHit(w, id) { return rsMsgHit(w, id) || rsUsrHit(w); }
+  function rsTgt(x, own, id) { // part150: অ্যাডমিন যে নির্দিষ্ট বার্তায় Restriction বসিয়েছে (mid = ওই বার্তা), তার লেখা সবার কাছে লুকানো
+    var h = function (w) { return rsAct(w) && w.mid > 0 && w.mid === +id; }, k = x && x.u;
+    return !!((k && (RS.p[k] || []).some(h)) || (own && RS.m.some(h)));
+  }
+  function rsKey(x, own, id) { // এই বার্তায় ⛔ বসবে কিনা: পাবলিক uid দিয়ে মেলে; নিজের হলে নিজের তালিকা দিয়েও
+    var k = x && x.u; if (k && (RS.p[k] || []).some(function (w) { return rsMsgHit(w, id); })) return k;
+    if (own && RS.m.some(function (w) { return rsMsgHit(w, id); })) return "me"; return "";
+  }
+  function rsUKey(x, own) { // part151: ইউজার-Restriction চলছে কিনা
+    var k = x && x.u; if (k && (RS.p[k] || []).some(rsUsrHit)) return k;
+    if (own && RS.m.some(rsUsrHit)) return "me"; return "";
   }
   function rsPrune() {
     var ch = false, f = function (L) { var n = (L || []).filter(rsAct); if (n.length !== (L || []).length) ch = true; return n; };
@@ -897,8 +1157,9 @@
       var nl = r.lk ? { r: String(r.lk.r || ""), e: +r.lk.e || 0 } : null, ns = !!r.shot, lch = JSON.stringify(nl) !== JSON.stringify(LK ? { r: LK.r, e: LK.e } : null); if (nl) nl.x = nl.e ? nl.e - ((+r.now || Date.now()) - Date.now()) : 0; LK = nl; if (ns !== SHOT) { SHOT = ns; applyShot(); }
       if (lch) { applyLock(); applyMe(); }
       var on = r.on !== false, pv = r.vis === "private"; if (on !== RSON || pv !== RSPRIV) { RSON = on; RSPRIV = pv; RS.sg = ""; RSV++; }
-      var sg = JSON.stringify([r.p, r.m, on, pv]); if (sg === RS.sg) return;
-      var off = (+r.now || Date.now()) - Date.now(), adj = function (w) { return { r: String(w.r || ""), c: +w.c - off, e: +w.e - off, k: String(w.k || "") }; }, P = {};
+      var sg = JSON.stringify([r.p, r.m, on, pv, r.hm, r.fm, r.dm, r.du]); if (sg === RS.sg) return;
+      var hm = {}; (Array.isArray(r.hm) ? r.hm : []).forEach(function (i) { hm[+i] = 1; }); HM = hm; var fm = {}; (Array.isArray(r.fm) ? r.fm : []).forEach(function (i) { fm[+i] = 1; }); FM = fm; if (+r.dm > 0) DF.m = +r.dm; if (+r.du > 0) DF.u = +r.du;
+      var off = (+r.now || Date.now()) - Date.now(), adj = function (w) { return { r: String(w.r || ""), c: +w.c - off, e: +w.e - off, k: String(w.k || ""), mid: w.mid === undefined ? null : (+w.mid || 0) }; }, P = {};
       (r.p || []).forEach(function (g) { if (g && g.u) P[g.u] = (g.w || []).map(adj); });
       RS = { p: P, m: (r.m || []).map(adj), sg: sg }; RSV++; applyRs(); render(false);
     }).catch(function () {}); // SQL (supabase-restrict.sql) না চালালে কিছু হয় না
@@ -909,24 +1170,31 @@
   }
   document.addEventListener("visibilitychange", function () { if (!document.hidden && $("#acx")) rsLoad(); });
   function applyRs() {
-    var b = $("#acRsB"); if (!b) return; var L = RS.m.filter(rsAct);
+    var b = $("#acRsB"); if (!b) return; var L = RS.m.filter(function (w) { return rsAct(w) && w.e - Date.now() < 1.5e11; }); // part151: আজীবন (মেসেজ-Restriction) ওপরের বারে আসে না — শুধু ওই বার্তার ⛔-এ
     b.hidden = !L.length; if (!L.length) { b.innerHTML = ""; return; }
     b.innerHTML = "<b>⛔ আপনি এখন Restricted — আপনার ওয়ার্নিং:</b>" + L.map(function (w) { return '<div class="rsw">⚠️ ' + esc(w.r) + "<small>" + kl(w) + " · বাকি " + left(w.e) + " · " + tm(w.e) + " পর্যন্ত</small></div>"; }).join("") + '<div class="sm2">নিয়ম ভাঙলে ব্যান হতে পারে। সময় শেষ হলে এই চিহ্ন নিজে চলে যাবে।</div>';
   }
-  function rsPop(k) { // সেটিং "সবাই": ⛔ চাপলে সবাই কারণ/বাকি সময়/কে দিয়েছে দেখে। সেটিং "private": শুধু ওই ইউজার নিজে আর অ্যাডমিন। (আসল আপত্তিকর মেসেজ সবসময় লুকানো)
-    if (!RSPRIV) return rsView(k, (rsGet(k) || []).filter(rsAct));
+  // শুধু অ্যাডমিন: বার্তার আসল লেখা ভাঁজ-করা মেনুতে (Restricted/আপত্তিকর বলে লুকানো থাকলেও এখানে পুরোটা দেখা যায়)
+  function origBox(id) {
+    if (!ADM || !id) return ""; var m = find(+id); if (!m) return ""; var x = MET[m.id] || {}, t = x.ed && x.b != null ? x.b : m.body, f = !t && (m.file_name || m.kind && m.kind !== "text") ? "📎 " + lab(m) + (m.file_name ? " — " + m.file_name : "") : "";
+    if (!t && !f) return "";
+    return '<details class="orgm" style="margin:8px 0;border:1px dashed #d93025;border-radius:10px;padding:6px 10px;text-align:left"><summary style="cursor:pointer;font-weight:700;color:#d93025">👁 আসল মেসেজ দেখুন <small style="font-weight:500;opacity:.7">(শুধু অ্যাডমিন)</small></summary><div style="margin-top:6px;white-space:pre-wrap;word-break:break-word"><small style="opacity:.7">👤 ' + esc(x.n || m.nick || "") + " · " + tm(m.created_at) + "</small><br>" + esc(String(t || f)) + "</div></details>";
+  }
+  function rsPop(k, id) { // সেটিং "সবাই": ⛔ চাপলে সবাই কারণ/বাকি সময়/কে দিয়েছে দেখে। সেটিং "private": শুধু ওই ইউজার নিজে আর অ্যাডমিন। (আসল আপত্তিকর মেসেজ সবসময় লুকানো)
+    var fl = function (L) { return (L || []).filter(function (w) { return id ? rsHit(w, id) : rsAct(w); }); }; // বার্তায় চাপলে শুধু ওই বার্তার ওয়ার্নিং
+    if (!RSPRIV) return rsView(k, fl(rsGet(k)), id);
     var own = k === "me"; if (!own && RS.m.some(rsAct)) Object.keys(MET).forEach(function (i) { var q = MET[i]; if (q && q.o && q.u === k) own = true; });
-    if (own) return rsView("me", RS.m.filter(rsAct));
+    if (own) return rsView("me", fl(RS.m), id);
     if (ADM) return arpc("fa_admin_restrictions", { p_active_only: true }).then(function (L) {
-      rsView(k, (L || []).filter(function (r) { return r.uid === k; }).map(function (r) { return { r: r.reason, c: r.c, e: r.e, k: r.k }; }).filter(rsAct));
+      rsView(k, (L || []).filter(function (r) { return r.uid === k; }).map(function (r) { return { r: r.reason, c: r.c, e: r.e, k: r.k, mid: r.mid == null ? 0 : +r.mid }; }).filter(function (w) { return id ? rsHit(w, id) : rsAct(w); }), id);
     }).catch(function () { toast("লোড হয়নি — অ্যাডমিন লগইন/SQL দেখুন।"); });
     toast("ওয়ার্নিংয়ের কারণ শুধু ওই ইউজার নিজে আর অ্যাডমিন দেখতে পারে।");
   }
-  function rsView(k, W) {
-    if (!W.length) return toast("এখন কোনো ওয়ার্নিং নেই।");
+  function rsView(k, W, id) {
+    if (!W.length) { if (ADM && id && origBox(id)) return pop("<b>এখন কোনো চলমান ওয়ার্নিং নেই।</b>" + origBox(id)); return toast("এখন কোনো ওয়ার্নিং নেই।"); }
     var nm = "আপনি"; if (k !== "me") { MSGS.some(function (m) { var x = MET[m.id] || {}; if (x.u === k) { nm = x.n || m.nick; return true; } }); if (nm === "আপনি") nm = "এই ইউজার"; }
     pop('<div style="text-align:center;font-size:42px;line-height:1.1">⛔</div><b style="text-align:center;font-size:17px;color:#d93025">' + esc(nm) + ' — Restricted</b><div class="sm2" style="text-align:center">' + (RSPRIV ? "শুধু এই ইউজার আর অ্যাডমিন এটা দেখতে পারে।" : "এই ওয়ার্নিং সবাই দেখতে পারে (আসল মেসেজ লুকানো থাকে)।") + '</div>' +
-      W.map(function (w) { return '<div class="rsw"><b>⚠️ ' + esc(w.r) + '</b><small>👤 দিয়েছে: <b>' + kl(w) + '</b></small><small>⏳ বাকি: <b>' + left(w.e) + '</b> (' + tm(w.e) + ' পর্যন্ত)</small><small>দেওয়া হয়েছে: ' + tm(w.c) + "</small></div>"; }).join(""));
+      W.map(function (w) { return '<div class="rsw"><b>⚠️ ' + esc(w.r) + '</b><small>👤 দিয়েছে: <b>' + kl(w) + '</b></small><small>⏳ ' + (w.e - Date.now() > 1.5e11 ? "মেয়াদ: <b>♾ আজীবন</b>" : "বাকি: <b>" + left(w.e) + "</b> (" + tm(w.e) + " পর্যন্ত)") + "</small><small>দেওয়া হয়েছে: " + tm(w.c) + "</small></div>"; }).join("") + origBox(id));
   }
   function report(id, m, x) {
     var Z = document.createElement("div"); Z.className = "sh0"; Z.id = "acRep";
@@ -1008,6 +1276,6 @@
   function sync() { if (location.hash === "#anon") { if (MINZ) return restore(); if (!$("#acx")) gate(); } else if (!MINZ) close(); }
   // Friend Adda: ল্যান্ডিং পেইজ থেকে সরাসরি রুমে ঢোকার API (আগের gate()-এর enter() যা করত তাই)
   window.__fa = { ON: ON, api: api, rpc: rpc, vid: vid, saved: function () { return LS.get("mc2_ac_p", {}); },
-    enter: function (d, s, n, dn, sn, au) { BUBMS = au ? 2000 : 4000; sn = String(sn || "").replace(/^(Session\s*)2023\s*$/i, function (m, a) { return a + "2023-24"; }); CUR = { d: d, s: s, n: n, dn: dn, sn: sn }; LS.set("mc2_ac_p", { d: d, s: s, n: n, dn: dn, sn: sn }); try { if (n) rpc("fa_name_log", { p_voter: vid(), p_nick: String(n) }).catch(function () {}); } catch (e) {} if (window.mcPresencePing) window.mcPresencePing(); room(); if (location.hash !== "#anon") location.hash = "anon"; } };
+    enter: function (d, s, n, dn, sn, au) { BUBMS = au ? 2000 : 4000; sn = String(sn || "").replace(/^(Session\s*)2023\s*$/i, function (m, a) { return a + "2023-24"; }); CUR = { d: d, s: s, n: n, dn: dn, sn: sn }; LS.set("mc2_ac_p", { d: d, s: s, n: n, dn: dn, sn: sn }); try { if (n) rpc("fa_name_log", { p_voter: vid(), p_nick: String(n) }).catch(function () {}); } catch (e) {} devFpSend(); if (window.mcPresencePing) window.mcPresencePing(); room(); if (location.hash !== "#anon") location.hash = "anon"; setTimeout(pushSync, 2500); } };
   window.addEventListener("hashchange", function (e) { var h = String(e.oldURL || "").split("#")[1]; if (h && h !== "anon") PH = h; sync(); }); sync();
 })();
